@@ -19,5 +19,7 @@ services:
       # sqlite db + images + data-protection keys. z: needed on SELinux hosts, ignored elsewhere.
       - ./data:/data:z
     ports:
-      - "8080:8080" # or join your reverse-proxy network instead
+      # Only the proxy on this host may connect: the app trusts X-Forwarded-For, and Docker ports bypass the host firewall.
+      # Proxy on another machine? Join its network instead, or bind to the interface it reaches.
+      - "127.0.0.1:8080:8080"
 

@@ -23,11 +23,6 @@
       "name": "images",
       "urls": ["/img/**"],
       "cacheConfig": { "strategy": "performance", "maxSize": 300, "maxAge": "30d" }
-    },
-    {
-      "name": "api-read",
-      "urls": ["/api/wishlists", "/api/wishlists/*", "/api/shared/**", "/api/auth/me"],
-      "cacheConfig": { "strategy": "freshness", "maxSize": 100, "maxAge": "7d", "timeout": "4s" }
     }
   ],
   "navigationUrls": ["/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**", "!/api/**", "!/img/**", "!/healthz"]

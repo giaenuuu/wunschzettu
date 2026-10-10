@@ -66,27 +66,30 @@ public static class WishEndpoints
     }
 
     /// A wish with gifts becomes Removed: givers still see it as "nicht mehr nötig", for everyone else it is gone (§6).
+    /// Its pictures go either way: whether the recipient's old image URLs still answered would tell them it was taken.
     static async Task<Results<NoContent, NotFound>> Delete(Guid id, ClaimsPrincipal user, AppDbContext db, GiftService gifts,
         ImageStore images, TimeProvider clock, CancellationToken ct)
     {
         var wish = await LoadEditableAsync(id, user, db, ct, details: true);
         if (wish is null) return TypedResults.NotFound();
 
+        var files = wish.Images.Select(i => i.FileKey).Concat(wish.Links.Select(l => l.PreviewImageKey).OfType<string>()).ToList();
         wish.Wishlist.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         if (await db.Gifts.AnyAsync(g => g.WishId == wish.Id, ct))
         {
             if (await db.Gifts.AnyAsync(g => g.WishId == wish.Id && g.ArchivedAt == null, ct))
                 await gifts.NotifyGiversAsync(wish, WishChange.Removed, ct);
             wish.State = WishState.Removed;
+            db.WishImages.RemoveRange(wish.Images);
+            foreach (var link in wish.Links) link.PreviewImageKey = null;
             await db.SaveChangesEditWinsAsync(ct);
         }
         else
         {
             db.Wishes.Remove(wish);
             await db.SaveChangesAsync(ct);
-            foreach (var image in wish.Images) images.Delete(image.FileKey);
-            foreach (var link in wish.Links.Where(l => l.PreviewImageKey is not null)) images.Delete(link.PreviewImageKey!);
         }
+        foreach (var key in files) images.Delete(key);
         return TypedResults.NoContent();
     }
 
@@ -114,10 +117,15 @@ public static class WishEndpoints
         if (ids.Count != wishes.Count || !wishes.Select(w => w.Id).ToHashSet().SetEquals(ids))
             return TypedResults.Problem("The order must contain every wish of the list exactly once.", statusCode: StatusCodes.Status400BadRequest);
 
-        var byId = wishes.ToDictionary(w => w.Id);
+        // Written directly, without the Version check: a reservation on some wish meanwhile must not make
+        // the recipient's reordering fail (§6 no-leak), and quick successive moves must not conflict.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         for (var i = 0; i < ids.Count; i++)
-            byId[ids[i]].SortOrder = i;
-        await db.SaveChangesAsync(ct);
+        {
+            var (wishId, order) = (ids[i], i);
+            await db.Wishes.Where(w => w.Id == wishId).ExecuteUpdateAsync(s => s.SetProperty(w => w.SortOrder, order), ct);
+        }
+        await tx.CommitAsync(ct);
         return TypedResults.NoContent();
     }
 

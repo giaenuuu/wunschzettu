@@ -77,6 +77,7 @@ public static class AuthEndpoints
             if (!result.Succeeded)
                 return TypedResults.Problem(string.Join(" ", result.Errors.Select(e => e.Description)), statusCode: 400, type: "weak-password");
             await auth.SignInAsync(user, ctx.User.DeviceId());
+            await auth.NotifyPasswordChangedAsync(user, removed: false);
             return TypedResults.NoContent();
         }).RequireAuthorization(Policies.ConfirmedUser);
 
@@ -89,6 +90,7 @@ public static class AuthEndpoints
             {
                 await users.RemovePasswordAsync(user);
                 await auth.SignInAsync(user, ctx.User.DeviceId());
+                await auth.NotifyPasswordChangedAsync(user, removed: true);
             }
             return TypedResults.NoContent();
         }).RequireAuthorization(Policies.ConfirmedUser);

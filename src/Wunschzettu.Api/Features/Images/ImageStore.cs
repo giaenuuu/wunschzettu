@@ -9,12 +9,21 @@ public class ImageStore(IOptions<AppOptions> options)
 {
     const int MaxEdge = 1600;
     const int ThumbEdge = 480;
-    const long MaxPixels = 50_000_000;
+    /// A 24 MP photo decodes to ~100 MB; bigger is refused, and the gate keeps parallel decodes from adding up.
+    const long MaxPixels = 24_000_000;
+    static readonly SemaphoreSlim Gate = new(2);
 
     string Dir => options.Value.ImagesDir;
 
     /// Returns the file key and stored size, or null if the data isn't a supported image.
     public (string Key, long Bytes)? Save(Stream input)
+    {
+        Gate.Wait();
+        try { return SaveCore(input); }
+        finally { Gate.Release(); }
+    }
+
+    (string Key, long Bytes)? SaveCore(Stream input)
     {
         using var upright = Decode(input);
         if (upright is null) return null;
@@ -28,6 +37,13 @@ public class ImageStore(IOptions<AppOptions> options)
 
     /// Link previews only need the small version: {key}_thumb.webp.
     public string? SaveThumbnail(Stream input)
+    {
+        Gate.Wait();
+        try { return SaveThumbnailCore(input); }
+        finally { Gate.Release(); }
+    }
+
+    string? SaveThumbnailCore(Stream input)
     {
         using var upright = Decode(input);
         if (upright is null) return null;
@@ -43,8 +59,21 @@ public class ImageStore(IOptions<AppOptions> options)
         using var codec = SKCodec.Create(input);
         if (codec is null || (long)codec.Info.Width * codec.Info.Height > MaxPixels) return null;
 
-        using var decoded = SKBitmap.Decode(codec);
-        return decoded is null ? null : ApplyOrientation(decoded, codec.EncodedOrigin);
+        var decoded = DecodeScaled(codec) ?? SKBitmap.Decode(codec);
+        if (decoded is null) return null;
+        var upright = ApplyOrientation(decoded, codec.EncodedOrigin);
+        if (upright != decoded) decoded.Dispose();
+        return upright;
+    }
+
+    /// JPEG and WebP can decode straight at a smaller size, which saves most of the memory for big photos.
+    static SKBitmap? DecodeScaled(SKCodec codec)
+    {
+        var scale = (float)MaxEdge / Math.Max(codec.Info.Width, codec.Info.Height);
+        if (scale >= 1) return null;
+        var size = codec.GetScaledDimensions(scale);
+        if (Math.Max(size.Width, size.Height) < MaxEdge || size == codec.Info.Size) return null;
+        return SKBitmap.Decode(codec, codec.Info.WithSize(size));
     }
 
     public void Delete(string key)
@@ -65,7 +94,7 @@ public class ImageStore(IOptions<AppOptions> options)
         return data.Size;
     }
 
-    /// Phones store photos sideways plus an EXIF hint; bake the rotation into the pixels.
+    /// Phones store photos sideways plus an EXIF hint; bake the rotation into the pixels. Returns src itself if upright.
     static SKBitmap ApplyOrientation(SKBitmap src, SKEncodedOrigin origin)
     {
         float w = src.Width, h = src.Height;
@@ -81,7 +110,7 @@ public class ImageStore(IOptions<AppOptions> options)
             SKEncodedOrigin.LeftBottom => new SKMatrix(0, 1, 0, -1, 0, w, 0, 0, 1),
             _ => null,
         };
-        if (m is null) return src.Copy();
+        if (m is null) return src;
 
         var swap = origin is SKEncodedOrigin.LeftTop or SKEncodedOrigin.RightTop or SKEncodedOrigin.RightBottom or SKEncodedOrigin.LeftBottom;
         var result = new SKBitmap(swap ? src.Height : src.Width, swap ? src.Width : src.Height);

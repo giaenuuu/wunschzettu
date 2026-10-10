@@ -1,6 +1,6 @@
 import { Directive, computed, input } from '@angular/core';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'danger-ghost';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'danger-ghost' | 'on-accent';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 const base =
@@ -17,15 +17,18 @@ const variants: Record<ButtonVariant, string> = {
   ghost: 'bg-transparent text-ink hover:bg-sunken',
   danger: 'bg-danger text-white hover:brightness-110',
   'danger-ghost': 'bg-transparent text-danger hover:bg-danger-soft',
+  // On an accent-coloured surface: opaque, so the text keeps its contrast in dark mode too.
+  'on-accent': 'bg-raised text-ink shadow-sm hover:bg-paper',
 };
 
+// Small buttons grow to 40px on touch screens, so fingers hit them reliably.
 const sizes: Record<ButtonSize, string> = {
-  sm: 'h-9 px-3.5 text-sm',
+  sm: 'h-9 pointer-coarse:h-10 px-3.5 text-sm',
   md: 'h-11 px-5 text-[0.9375rem]',
   lg: 'h-14 px-7 text-base',
 };
 
-const iconSizes: Record<ButtonSize, string> = { sm: 'size-9', md: 'size-11', lg: 'size-14' };
+const iconSizes: Record<ButtonSize, string> = { sm: 'size-9 pointer-coarse:size-10', md: 'size-11', lg: 'size-14' };
 
 /**
  * Buttons and button-looking links: `<button uiButton>`, `<a uiButton variant="secondary">`.

@@ -33,6 +33,22 @@ public static class Mails
         new(T(u, "Jetzt anmelden", "Sign in now"), link),
         Ignore(u));
 
+    public static MailContent PasswordChanged(AppUser u, bool removed, string profileUrl) => new(
+        "PasswordChanged",
+        removed ? T(u, "Dein Passwort wurde entfernt", "Your password was removed") : T(u, "Dein Passwort wurde geändert", "Your password was changed"),
+        T(u, "Passwort geändert", "Password changed"),
+        [
+            Hello(u) + ",",
+            removed
+                ? T(u, "das Passwort für dein Wunschzettu-Konto wurde soeben entfernt. Du meldest dich jetzt wieder mit einem Code per Mail an.",
+                    "the password of your Wunschzettu account was just removed. You now sign in with a code by email again.")
+                : T(u, "das Passwort für dein Wunschzettu-Konto wurde soeben gesetzt oder geändert. Alle anderen Geräte wurden abgemeldet.",
+                    "the password of your Wunschzettu account was just set or changed. All other devices were signed out."),
+            T(u, "Warst du das nicht? Melde dich mit einem Code per Mail an und entferne das Passwort im Profil – damit werden alle anderen Geräte abgemeldet.",
+                "Wasn't you? Sign in with a code by email and remove the password in your profile – that signs out all other devices."),
+        ],
+        Button: new(T(u, "Zum Profil", "Open your profile"), profileUrl));
+
     public record Confirmation(string Code, string Link, DateTime ExpiresAt);
 
     public static MailContent GiftChosen(AppUser u, string wish, string list, bool isGroup, string listUrl, Confirmation? confirm)

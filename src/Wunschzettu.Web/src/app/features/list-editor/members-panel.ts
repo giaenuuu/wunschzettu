@@ -44,10 +44,13 @@ import { Toaster } from '../../ui/toaster';
                 <ui-icon [name]="m.isManager ? 'remove_moderator' : 'add_moderator'" />
                 @if (m.isManager) { <span i18n="@@members.revokeManager">Nicht mehr verwalten</span> } @else { <span i18n="@@members.makeManager">Mitverwalten lassen</span> }
               </button>
-              <button cdkMenuItem class="menu-item" (cdkMenuItemTriggered)="update(m, m.isManager, !m.isRecipient)">
-                <ui-icon name="redeem" />
-                @if (m.isRecipient) { <span i18n="@@members.notRecipient">Wird nicht beschenkt</span> } @else { <span i18n="@@members.makeRecipient">Wird beschenkt</span> }
-              </button>
+              <!-- Nobody stops being a recipient by their own click: the gifts would show at once (another manager can). -->
+              @if (!(m.isMe && m.isRecipient)) {
+                <button cdkMenuItem class="menu-item" (cdkMenuItemTriggered)="update(m, m.isManager, !m.isRecipient)">
+                  <ui-icon name="redeem" />
+                  @if (m.isRecipient) { <span i18n="@@members.notRecipient">Wird nicht beschenkt</span> } @else { <span i18n="@@members.makeRecipient">Wird beschenkt</span> }
+                </button>
+              }
               <div class="menu-separator"></div>
               <button cdkMenuItem class="menu-item text-danger!" (cdkMenuItemTriggered)="remove(m)">
                 <ui-icon name="person_remove" />
@@ -58,10 +61,17 @@ import { Toaster } from '../../ui/toaster';
         </li>
       }
     </ul>
+    @if (members.error(); as error) {
+      <p class="notice notice-warn mb-6 items-center" role="alert">
+        <ui-icon name="error" />
+        <span class="flex-1">{{ problemMessage(error) }}</span>
+        <button uiButton variant="ghost" size="sm" type="button" (click)="members.reload()" i18n="@@common.retry">Nochmals versuchen</button>
+      </p>
+    }
 
     <form [formRoot]="form" class="flex flex-col gap-4 rounded-3xl bg-sunken/60 p-4">
       <strong i18n="@@members.inviteTitle">Jemanden einladen</strong>
-      <ui-segmented [formField]="form.role" [options]="roles" i18n-label="@@members.role" label="Als" />
+      <ui-segmented [formField]="form.role" [options]="roles" [stacked]="true" i18n-label="@@members.role" label="Als" />
       <p class="-mt-1 text-sm text-ink-muted">{{ roleHint() }}</p>
       <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
         <ui-field i18n-label="@@members.inviteEmail" label="E-Mail-Adresse" class="flex-1">
@@ -79,6 +89,7 @@ export class MembersPanel {
   readonly #confirm = inject(Confirmer);
   readonly #router = inject(Router);
 
+  protected readonly problemMessage = problemMessage;
   protected readonly members = httpResource<Member[]>(() => `/api/wishlists/${this.list().id}/members`);
   protected readonly roles: SegmentOption<MemberRole>[] = [
     { value: 'Manager', label: $localize`:@@members.roleManager:Mitverwaltung` },

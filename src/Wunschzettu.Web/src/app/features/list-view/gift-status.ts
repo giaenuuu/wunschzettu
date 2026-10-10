@@ -1,6 +1,6 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { MyGift, Wish, WishAvailability } from '../../core/api';
 import { Auth } from '../../core/auth';
@@ -42,7 +42,10 @@ import { GiftDialog, GiftDialogData, GiftDialogResult, GiftMode } from './gift-d
         @if (g.expiresAt) {
           <p class="notice notice-warn py-2 text-sm">
             <ui-icon name="schedule" [size]="18" />
-            <span i18n="@@gift.confirmBy">Bitte bestätige deine E-Mail bis {{ g.expiresAt | date: 'longDate' }} – den Link findest du in deiner Mailbox.</span>
+            <span class="flex flex-1 flex-col items-start gap-1">
+              <span i18n="@@gift.confirmBy">Bitte bestätige deine E-Mail bis {{ g.expiresAt | date: 'longDate' }} – den Link findest du in deiner Mailbox.</span>
+              <button type="button" class="cursor-pointer font-semibold underline underline-offset-2 disabled:opacity-60" [disabled]="resending()" (click)="resendConfirmation()" i18n="@@gift.resendMail">Mail nochmals senden</button>
+            </span>
           </p>
         }
 
@@ -79,7 +82,7 @@ import { GiftDialog, GiftDialogData, GiftDialogResult, GiftMode } from './gift-d
               @if (g.status === 'Bought') {
                 <button uiButton variant="ghost" size="sm" (click)="setBought(g, false)"><ui-icon name="undo" [size]="18" /><span i18n="@@gift.unbuy">Doch nicht gekauft</span></button>
               } @else {
-                <button uiButton variant="secondary" size="sm" (click)="setBought(g, true)"><ui-icon name="shopping_bag" [size]="18" /><span i18n="@@gift.markBought">Gekauft</span></button>
+                <button uiButton variant="secondary" size="sm" (click)="setBought(g, true)"><ui-icon name="shopping_bag" [size]="18" /><span i18n="@@gift.markBought">Als gekauft markieren</span></button>
               }
             }
             @if (g.isGroup) {
@@ -164,6 +167,23 @@ export class GiftStatus {
 
   protected readonly mine = computed(() => this.removedGifts() ?? this.availability()?.mine ?? []);
   protected readonly boughtHint = $localize`:@@gift.boughtHint:Als gekauft markiert – die Organisatorin oder der Organisator muss es zuerst wieder öffnen.`;
+
+  protected readonly resending = signal(false);
+
+  /** A login mail confirms the address too, which keeps the reservation. */
+  protected async resendConfirmation() {
+    const email = this.#auth.user()?.email;
+    if (!email) return;
+    this.resending.set(true);
+    try {
+      await this.#auth.requestCode(email, `/l/${this.token()}`);
+      this.#toaster.show($localize`:@@gift.mailResent:Neue Mail ist unterwegs. Schau auch im Spam-Ordner nach.`, { tone: 'success' });
+    } catch (e) {
+      this.#toaster.show(problemMessage(e), { tone: 'error' });
+    } finally {
+      this.resending.set(false);
+    }
+  }
 
   protected open(mode: GiftMode, gift?: MyGift, giftId?: string) {
     const data: GiftDialogData = {

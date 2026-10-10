@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Wunschzettu.Api.Data;
 using Wunschzettu.Api.Features.Notifications;
 using Wunschzettu.Api.Infrastructure;
@@ -8,7 +9,8 @@ using Wunschzettu.Api.Infrastructure;
 namespace Wunschzettu.Api.Features.Auth;
 
 /// Email-only identity (§5): users, one-time codes and links, confirmation, sign-in.
-public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInManager<AppUser> signIn, Mailer mailer, TimeProvider clock)
+public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInManager<AppUser> signIn, Mailer mailer, TimeProvider clock,
+    IOptions<AppOptions> options)
 {
     public static readonly TimeSpan LoginCodeValidity = TimeSpan.FromMinutes(15);
     public static readonly TimeSpan InviteValidity = TimeSpan.FromDays(7);
@@ -52,12 +54,16 @@ public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInMana
 
     /// Limits mails per address, so nobody can flood someone's inbox through us (§5.5).
     /// The daily cap also bounds how many codes an attacker can guess against.
+    /// Gift confirmations don't count here; they have their own limit (GiftService).
+    /// The global cap keeps someone cycling through addresses from getting the SMTP account blocked.
     public async Task<bool> MayIssueCodeAsync(AppUser user)
     {
         var hour = Now.AddHours(-1);
         var day = Now.AddDays(-1);
-        var recent = await db.LoginCodes.Where(c => c.UserId == user.Id && c.CreatedAt > day).Select(c => c.CreatedAt).ToListAsync();
-        return recent.Count(t => t > hour) < MaxCodesPerHour && recent.Count < MaxCodesPerDay;
+        var sent = db.LoginCodes.Where(c => c.Purpose != LoginCodePurpose.Confirm && c.CreatedAt > day);
+        var recent = await sent.Where(c => c.UserId == user.Id).Select(c => c.CreatedAt).ToListAsync();
+        return recent.Count(t => t > hour) < MaxCodesPerHour && recent.Count < MaxCodesPerDay
+            && await sent.CountAsync() < options.Value.MaxLoginMailsPerDay;
     }
 
     /// Signing in by just typing an email is only for people whose account holds nothing but their own gifts.
@@ -132,12 +138,14 @@ public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInMana
     }
 
     /// Proven access to the mailbox: confirm the address and keep everything done unconfirmed (§5.1).
+    /// Anyone could have typed the email before, so the first confirmation ends all other sessions:
+    /// only the device that proved the mailbox becomes confirmed. The caller signs it in again.
     public async Task ConfirmAsync(AppUser user)
     {
         if (!user.EmailConfirmed)
         {
             user.EmailConfirmed = true;
-            await users.UpdateAsync(user);
+            await users.UpdateSecurityStampAsync(user); // also saves
         }
         await db.GiftParticipants.Where(p => p.UserId == user.Id && p.ExpiresAt != null)
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.ExpiresAt, (DateTime?)null));
@@ -170,6 +178,13 @@ public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInMana
             if (!removed.Succeeded) return removed;
         }
         return await users.AddPasswordAsync(user, password);
+    }
+
+    /// Tells the owner, so a password set from a stolen session doesn't go unnoticed.
+    public async Task NotifyPasswordChangedAsync(AppUser user, bool removed)
+    {
+        mailer.Enqueue(user, Mails.PasswordChanged(user, removed, mailer.Url("/profile")));
+        await db.SaveChangesAsync();
     }
 
     public Task SignOutAsync() => signIn.SignOutAsync();

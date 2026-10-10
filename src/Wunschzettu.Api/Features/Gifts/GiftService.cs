@@ -67,7 +67,11 @@ public class GiftService(AppDbContext db, Mailer mailer, AuthService auth, TimeP
             .AsSplitQuery()
             .SingleOrDefaultAsync(g => g.Id == giftId && g.ArchivedAt == null && g.Wish.Wishlist.DeletedAt == null, ct);
 
-    public async Task<(Guid GiftId, GiftError? Error)> CreateAsync(Wishlist list, ListMember? member, Guid wishId, Actor actor,
+    public Task<(Guid GiftId, GiftError? Error)> CreateAsync(Wishlist list, ListMember? member, Guid wishId, Actor actor,
+        CreateGiftRequest req, CancellationToken ct) =>
+        RetryOnConflictAsync(actor, () => CreateOnceAsync(list, member, wishId, actor, req, ct));
+
+    async Task<(Guid GiftId, GiftError? Error)> CreateOnceAsync(Wishlist list, ListMember? member, Guid wishId, Actor actor,
         CreateGiftRequest req, CancellationToken ct)
     {
         if (member is { IsGuest: false }) return (default, GiftError.NotAllowed);
@@ -87,14 +91,18 @@ public class GiftService(AppDbContext db, Mailer mailer, AuthService auth, TimeP
         var gift = new Gift { WishId = wish.Id, Units = units, IsGroup = req.IsGroup, CreatedAt = Now };
         gift.Participants.Add(NewParticipant(actor, list, isOrganizer: true, req.Amount, req.Message));
         db.Gifts.Add(gift);
-        EnsureGuestMember(list, member, actor.User);
+        await EnsureGuestMemberAsync(list, member, actor.User, ct);
         db.Touch(wish);
         SendChosenMail(actor, gift.Participants[0], wish, list, req.IsGroup);
         await db.SaveChangesAsync(ct);
         return (gift.Id, null);
     }
 
-    public async Task<GiftError?> JoinAsync(Wishlist list, ListMember? member, Guid giftId, Actor actor, ParticipateRequest req,
+    public Task<GiftError?> JoinAsync(Wishlist list, ListMember? member, Guid giftId, Actor actor, ParticipateRequest req,
+        CancellationToken ct) =>
+        RetryOnConflictAsync(actor, () => JoinOnceAsync(list, member, giftId, actor, req, ct));
+
+    async Task<GiftError?> JoinOnceAsync(Wishlist list, ListMember? member, Guid giftId, Actor actor, ParticipateRequest req,
         CancellationToken ct)
     {
         if (member is { IsGuest: false }) return GiftError.NotAllowed;
@@ -110,7 +118,7 @@ public class GiftService(AppDbContext db, Mailer mailer, AuthService auth, TimeP
         foreach (var other in gift.Participants)
             mailer.Enqueue(other.User, Mails.GroupJoined(other.User, actor.User.DisplayName, gift.Wish.Name, listUrl));
         gift.Participants.Add(participant);
-        EnsureGuestMember(list, member, actor.User);
+        await EnsureGuestMemberAsync(list, member, actor.User, ct);
         db.Touch(gift.Wish);
         SendChosenMail(actor, participant, gift.Wish, list, isGroup: true);
         await db.SaveChangesAsync(ct);
@@ -190,6 +198,20 @@ public class GiftService(AppDbContext db, Mailer mailer, AuthService auth, TimeP
         db.Touch(wish);
     }
 
+    /// Someone who gave and then becomes manager or recipient must not keep following those gifts (§6 no-leak):
+    /// their participations end as if they had left. Call before saving the role change.
+    public async Task ReleaseForRoleChangeAsync(Guid listId, string userId, CancellationToken ct)
+    {
+        var gifts = await db.Gifts
+            .Include(g => g.Wish).ThenInclude(w => w.Wishlist)
+            .Include(g => g.Participants).ThenInclude(p => p.User)
+            .AsSplitQuery()
+            .Where(g => g.Wish.WishlistId == listId && g.ArchivedAt == null && g.Participants.Any(p => p.UserId == userId))
+            .ToListAsync(ct);
+        foreach (var gift in gifts)
+            RemoveParticipant(gift, gift.Participants.Single(p => p.UserId == userId));
+    }
+
     /// Recipients and managers may change anything; the givers get told instead (§6 no-leak).
     /// Call before saving the change. Needs nothing loaded; the query is a no-op for wishes without gifts.
     public async Task NotifyGiversAsync(Wish wish, WishChange change, CancellationToken ct)
@@ -220,10 +242,26 @@ public class GiftService(AppDbContext db, Mailer mailer, AuthService auth, TimeP
     };
 
     /// The first action adds a guest membership: it puts the list under "shared with me".
-    void EnsureGuestMember(Wishlist list, ListMember? member, AppUser user)
+    /// Checked again in the database: on a retry, a parallel request may have added it meanwhile.
+    async Task EnsureGuestMemberAsync(Wishlist list, ListMember? member, AppUser user, CancellationToken ct)
     {
-        if (member is null)
+        if (member is null && !await db.ListMembers.AnyAsync(m => m.WishlistId == list.Id && m.UserId == user.Id, ct))
             db.ListMembers.Add(new ListMember { WishlistId = list.Id, UserId = user.Id, JoinedAt = Now });
+    }
+
+    /// Every gift change bumps the wish's Version (§6.8), so two guests acting on the same wish at once conflict
+    /// even when there is enough left. The loser starts over on fresh data; only a real shortage reaches the guest.
+    async Task<T> RetryOnConflictAsync<T>(Actor actor, Func<Task<T>> attempt)
+    {
+        for (var tries = 1; ; tries++)
+        {
+            try { return await attempt(); }
+            catch (DbUpdateException e) when (tries < 4 && AppDbContext.IsWriteConflict(e))
+            {
+                db.ChangeTracker.Clear();
+                db.Attach(actor.User);
+            }
+        }
     }
 
     void SendChosenMail(Actor actor, GiftParticipant participant, Wish wish, Wishlist list, bool isGroup)

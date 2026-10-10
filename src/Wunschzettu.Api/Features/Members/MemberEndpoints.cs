@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wunschzettu.Api.Data;
 using Wunschzettu.Api.Features.Auth;
+using Wunschzettu.Api.Features.Gifts;
 using Wunschzettu.Api.Features.Notifications;
 using Wunschzettu.Api.Features.Wishlists;
 using Wunschzettu.Api.Infrastructure;
@@ -47,7 +48,7 @@ public static class MemberEndpoints
     }
 
     static async Task<Results<NoContent, NotFound, ProblemHttpResult>> Invite(Guid id, InviteRequest req, ClaimsPrincipal user,
-        AppDbContext db, AuthService auth, Mailer mailer, TimeProvider clock, CancellationToken ct)
+        AppDbContext db, AuthService auth, GiftService gifts, Mailer mailer, TimeProvider clock, CancellationToken ct)
     {
         var me = await db.FindMembershipAsync(id, user.RequiredUserId(), ct);
         if (me is not { IsManager: true }) return TypedResults.NotFound();
@@ -67,9 +68,12 @@ public static class MemberEndpoints
             member = new ListMember { WishlistId = id, UserId = invitee.Id, JoinedAt = now };
             db.ListMembers.Add(member);
         }
+        else if (!member.Invited)
+            member.JoinedAt = now; // sorted by the time they gave otherwise, which hints at it
         member.IsManager |= req.Role == MemberRole.Manager;
         member.IsRecipient |= req.Role == MemberRole.Recipient;
         member.Invited = true;
+        if (!member.IsGuest) await gifts.ReleaseForRoleChangeAsync(id, invitee.Id, ct);
 
         var (_, token) = auth.IssueCode(invitee, LoginCodePurpose.Invite, now + AuthService.InviteValidity);
         var target = req.Role == MemberRole.Guest ? $"/l/{list.ShareToken}" : $"/lists/{list.Id}/edit";
@@ -86,8 +90,10 @@ public static class MemberEndpoints
     }
 
     static async Task<Results<NoContent, NotFound, ProblemHttpResult>> Update(Guid id, string userId, UpdateMemberRequest req,
-        ClaimsPrincipal user, AppDbContext db, CancellationToken ct)
+        ClaimsPrincipal user, AppDbContext db, GiftService gifts, CancellationToken ct)
     {
+        // Check and change in one write transaction: two managers demoting each other must not leave none.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         var me = await db.FindMembershipAsync(id, user.RequiredUserId(), ct);
         if (me is not { IsManager: true }) return TypedResults.NotFound();
         var member = await db.ListMembers.SingleOrDefaultAsync(m => m.WishlistId == id && m.UserId == userId, ct);
@@ -95,25 +101,37 @@ public static class MemberEndpoints
 
         if (member.IsManager && !req.IsManager && !await HasOtherManager(db, id, userId, ct))
             return TypedResults.Problem("A list needs at least one manager.", statusCode: 409, type: "last-manager");
+        if (member.IsRecipient && !req.IsRecipient && member.UserId == me.UserId)
+            return SelfUnrecipient();
         member.IsManager = req.IsManager;
         member.IsRecipient = req.IsRecipient;
         member.Invited = true;
+        if (!member.IsGuest) await gifts.ReleaseForRoleChangeAsync(id, userId, ct);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return TypedResults.NoContent();
     }
+
+    /// One click would reveal every gift to the recipient (§6 no-leak); another manager has to do it.
+    static ProblemHttpResult SelfUnrecipient() =>
+        TypedResults.Problem("Another manager has to remove you as recipient.", statusCode: 409, type: "self-recipient");
 
     static async Task<Results<NoContent, NotFound, ProblemHttpResult>> Remove(Guid id, string userId, ClaimsPrincipal user,
         AppDbContext db, CancellationToken ct)
     {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         var me = await db.FindMembershipAsync(id, user.RequiredUserId(), ct);
         if (me is not { IsManager: true }) return TypedResults.NotFound();
         var member = await db.ListMembers.SingleOrDefaultAsync(m => m.WishlistId == id && m.UserId == userId, ct);
         if (member is null || (member.IsGuest && !member.Invited)) return TypedResults.NotFound();
         if (member.IsManager && !await HasOtherManager(db, id, userId, ct))
             return TypedResults.Problem("A list needs at least one manager.", statusCode: 409, type: "last-manager");
+        if (member.IsRecipient && member.UserId == me.UserId)
+            return SelfUnrecipient();
 
         db.ListMembers.Remove(member);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return TypedResults.NoContent();
     }
 

@@ -48,10 +48,11 @@ import { UiToaster } from './ui/toaster';
             {{ initial() }}
           </button>
         } @else {
-          <button uiButton variant="ghost" size="sm" [iconOnly]="true" [cdkMenuTriggerFor]="menu" i18n-aria-label="@@app.settings" aria-label="Einstellungen">
-            <ui-icon name="tune" />
+          <!-- A globe plus the language reads as "settings" to everyone; a slider icon doesn't. -->
+          <button uiButton variant="ghost" size="sm" class="px-2.5" [cdkMenuTriggerFor]="menu" i18n-aria-label="@@app.settings" aria-label="Sprache und Darstellung">
+            <ui-icon name="language" [size]="20" /><span aria-hidden="true">{{ language === 'en' ? 'EN' : 'DE' }}</span>
           </button>
-          <a uiButton variant="secondary" size="sm" routerLink="/login" i18n="@@app.login">Anmelden</a>
+          <a uiButton variant="secondary" size="sm" routerLink="/login" routerLinkActive="hidden!" i18n="@@app.login">Anmelden</a>
         }
       </div>
     </header>

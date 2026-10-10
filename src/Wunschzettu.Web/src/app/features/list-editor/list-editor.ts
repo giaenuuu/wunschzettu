@@ -32,8 +32,7 @@ import { MembersPanel } from './members-panel';
     UiButton, UiIcon, UiEmpty, UiLoadingBar, ShareButton, WishCard, ListSettings, MembersPanel, GiftSummary,
   ],
   template: `
-    @if (list.hasValue()) {
-      @let l = list.value();
+    @if (current(); as l) {
       <div [class]="paletteClass(l.theme.palette)" class="min-h-[calc(100dvh-4rem)] bg-paper">
         <div class="relative overflow-hidden">
           <div class="pointer-events-none absolute inset-x-0 -top-40 h-80 bg-[radial-gradient(closest-side,var(--color-accent-soft),transparent)]" aria-hidden="true"></div>
@@ -69,10 +68,10 @@ import { MembersPanel } from './members-panel';
                 <span class="truncate text-sm opacity-85">{{ shareUrl() }}</span>
               </div>
               <div class="flex flex-wrap gap-2">
-                <app-share-button variant="secondary" size="sm" [url]="shareUrl()" [title]="l.title" [text]="shareText(l)" />
-                <button uiButton variant="secondary" size="sm" (click)="copyLink()"><ui-icon name="content_copy" [size]="18" /><span i18n="@@editor.copy">Kopieren</span></button>
+                <app-share-button variant="on-accent" size="sm" [url]="shareUrl()" [title]="l.title" [text]="shareText(l)" />
+                <button uiButton variant="on-accent" size="sm" (click)="copyLink()"><ui-icon name="content_copy" [size]="18" /><span i18n="@@editor.copy">Kopieren</span></button>
                 @if (l.isManager) {
-                  <button uiButton variant="secondary" size="sm" [iconOnly]="true" [cdkMenuTriggerFor]="shareMenu" i18n-aria-label="@@editor.moreShare" aria-label="Weitere Optionen zum Link">
+                  <button uiButton variant="on-accent" size="sm" [iconOnly]="true" [cdkMenuTriggerFor]="shareMenu" i18n-aria-label="@@editor.moreShare" aria-label="Weitere Optionen zum Link">
                     <ui-icon name="more_vert" />
                   </button>
                   <ng-template #shareMenu>
@@ -102,6 +101,20 @@ import { MembersPanel } from './members-panel';
         </div>
 
         <div class="page">
+          @if (list.error(); as error) {
+            <p class="notice notice-warn mb-6 items-center" role="alert">
+              <ui-icon name="error" />
+              <span class="flex-1">{{ problemMessage(error) }}</span>
+              <button uiButton variant="ghost" size="sm" (click)="refresh()" i18n="@@common.retry">Nochmals versuchen</button>
+            </p>
+          }
+          @if (gifts.error(); as error) {
+            <p class="notice notice-warn mb-6 items-center" role="alert">
+              <ui-icon name="error" />
+              <span class="flex-1"><ng-container i18n="@@editor.giftsFailed">Die Geschenke konnten nicht geladen werden.</ng-container> {{ problemMessage(error) }}</span>
+              <button uiButton variant="ghost" size="sm" (click)="gifts.reload()" i18n="@@common.retry">Nochmals versuchen</button>
+            </p>
+          }
           <div class="mb-4 flex items-center gap-3">
             <h2 class="section-title flex-1">
               <span i18n="@@editor.wishes">Wünsche</span>
@@ -214,6 +227,7 @@ export class ListEditor {
   readonly #confirm = inject(Confirmer);
 
   protected readonly paletteClass = paletteClass;
+  protected readonly problemMessage = problemMessage;
   protected readonly fulfilledLabel = $localize`:@@wish.stampFulfilled:Erfüllt`;
   /** Bumped after every change; a new request replaces one in flight (`reload()` would be ignored then). */
   readonly #version = signal(0);
@@ -221,23 +235,25 @@ export class ListEditor {
     this.#version();
     return { url: `/api/wishlists/${this.id()}` };
   });
+  /** The last loaded list, kept during reloads: no skeleton flash, open panels and the scroll position stay. */
+  protected readonly current = lastValue(this.list);
   /** Only for managers who aren't the recipient. Recipients never request it (§6). */
   protected readonly gifts = httpResource<WishGifts[]>(() =>
     // A new request object per list value: reloading the list reloads the gifts too.
-    this.list.hasValue() && this.list.value().canSeeGifts ? { url: `/api/wishlists/${this.id()}/gifts` } : undefined,
+    this.current()?.canSeeGifts ? { url: `/api/wishlists/${this.id()}/gifts` } : undefined,
   );
 
   /** Local copy so reordering is instant; resets whenever the list reloads. */
-  protected readonly wishes = linkedSignal(() => (this.list.hasValue() ? this.list.value().wishes : []));
+  protected readonly wishes = linkedSignal(() => this.current()?.wishes ?? []);
   readonly #gifts = lastValue(this.gifts);
   protected readonly giftsByWish = computed(() => new Map((this.#gifts() ?? []).map((g) => [g.wishId, g])));
   protected readonly removedWithGifts = computed(() => (this.#gifts() ?? []).filter((g) => g.wishState === 'Removed'));
-  protected readonly shareUrl = computed(() => (this.list.hasValue() ? `${location.origin}/l/${this.list.value().shareToken}` : ''));
+  protected readonly shareUrl = computed(() => (this.current() ? `${location.origin}/l/${this.current()!.shareToken}` : ''));
 
   constructor() {
     effect(() => {
       const url = this.share();
-      if (!url || !this.list.hasValue()) return;
+      if (!url || !this.current()) return;
       untracked(() => {
         // Drop the parameters first, so going back or reloading doesn't open the dialog again.
         this.#router.navigate([], { queryParams: { share: null, shareTitle: null }, queryParamsHandling: 'merge', replaceUrl: true });
@@ -294,8 +310,12 @@ export class ListEditor {
       action: {
         label: $localize`:@@common.undo:Rückgängig`,
         run: async () => {
-          await firstValueFrom(this.#http.post(`/api/wishlists/${id}/restore`, null));
-          await this.#router.navigate(['/lists', id, 'edit']);
+          try {
+            await firstValueFrom(this.#http.post(`/api/wishlists/${id}/restore`, null));
+            await this.#router.navigate(['/lists', id, 'edit']);
+          } catch (e) {
+            this.#toaster.show(problemMessage(e), { tone: 'error' });
+          }
         },
       },
       duration: 10_000,
@@ -303,10 +323,10 @@ export class ListEditor {
   }
 
   protected openWish(wish?: Wish, shared?: WishDialogData['shared']) {
-    const l = this.list.value()!;
-    this.#dialogs
-      .open<WishDialog, WishDialogData, Wish>(WishDialog, { data: { listId: l.id, currency: l.currency, wish, shared }, size: 'lg' })
-      .closed.subscribe(() => this.#refresh());
+    const l = this.current()!;
+    const ref = this.#dialogs.open<WishDialog, WishDialogData, Wish>(WishDialog, { data: { listId: l.id, currency: l.currency, wish, shared }, size: 'lg' });
+    // Also after "cancel" once the wish itself was saved (e.g. only a picture failed).
+    ref.closed.subscribe((saved) => (saved || ref.componentInstance?.saved()) && this.#refresh());
   }
 
   protected async setFulfilled(wish: Wish, fulfilled: boolean) {
@@ -338,6 +358,10 @@ export class ListEditor {
       this.#toaster.show(problemMessage(e), { tone: 'error' });
       this.#refresh();
     }
+  }
+
+  protected refresh() {
+    this.#refresh();
   }
 
   #refresh() {

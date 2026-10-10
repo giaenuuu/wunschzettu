@@ -31,8 +31,8 @@ export class UiControl {
 
   protected readonly describedBy = computed(() => {
     if (!this.field) return null;
-    if (this.showError()) return `${this.id}-error`;
-    return this.field.hint() ? `${this.id}-hint` : null;
+    const ids = [this.showError() && `${this.id}-error`, this.field.hint() && `${this.id}-hint`].filter(Boolean);
+    return ids.length ? ids.join(' ') : null;
   });
 }
 
@@ -58,7 +58,8 @@ export class UiControl {
     </div>
     @if (control()?.errorText(); as error) {
       <p [id]="control()!.id + '-error'" class="text-sm font-medium text-danger">{{ error }}</p>
-    } @else if (hint()) {
+    }
+    @if (hint()) {
       <p [id]="control()?.id + '-hint'" class="text-sm text-ink-muted">{{ hint() }}</p>
     }
   `,

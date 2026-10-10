@@ -9,7 +9,8 @@ import { LinkCard } from './link-card';
 /**
  * A wish, styled like a gift tag. Views add their own parts:
  * `<div cardStatus>` below the details (gift state), and default content as the action row.
- * `wide` puts the picture beside the text (list layout on larger screens).
+ * `wide` puts the picture beside the text (list layout on larger screens). `dimmed` greys out the picture only:
+ * the texts stay readable, because "taken" is exactly what guests must not miss.
  */
 @Component({
   selector: 'app-wish-card',
@@ -19,8 +20,7 @@ import { LinkCard } from './link-card';
   template: `
     @let w = wish();
     <article
-      class="card relative flex h-full flex-col overflow-hidden transition-opacity"
-      [class.opacity-60]="dimmed()"
+      class="card relative flex h-full flex-col overflow-hidden"
       [class]="wide() ? 'sm:flex-row' : ''"
       [attr.aria-labelledby]="'wish-' + w.id"
     >
@@ -33,7 +33,7 @@ import { LinkCard } from './link-card';
           i18n-aria-label="@@wish.showImages"
           aria-label="Bilder ansehen"
         >
-          <img [src]="w.images[0].thumbUrl" alt="" loading="lazy" decoding="async" class="size-full object-cover transition-transform duration-500 group-hover/img:scale-[1.04]" [class.grayscale]="dimmed()" />
+          <img [src]="w.images[0].thumbUrl" alt="" loading="lazy" decoding="async" class="size-full object-cover transition-transform duration-500 group-hover/img:scale-[1.04]" [class.grayscale]="dimmed()" [class.opacity-50]="dimmed()" />
           @if (w.images.length > 1) {
             <span class="absolute right-2.5 bottom-2.5 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-xs font-semibold text-white backdrop-blur">
               <ui-icon name="photo_library" [size]="14" />{{ w.images.length }}
@@ -57,7 +57,7 @@ import { LinkCard } from './link-card';
           <h3
             [id]="'wish-' + w.id"
             class="display pr-6 text-xl leading-tight break-words"
-            [class]="dimmed() ? 'line-through decoration-ink-muted decoration-2' : ''"
+            [class]="dimmed() ? 'text-ink-muted line-through decoration-ink-muted decoration-2' : ''"
           >
             {{ w.name }}
           </h3>
@@ -70,7 +70,7 @@ import { LinkCard } from './link-card';
 
           <div class="flex flex-wrap items-center gap-1.5">
             @if (w.price !== null) {
-              <span class="mr-1 text-[0.9375rem] font-bold text-accent" [class.line-through]="dimmed()" i18n="@@wish.price">ca. {{ currency() }} {{ w.price | number: '1.0-0' }}</span>
+              <span class="mr-1 text-[0.9375rem] font-bold" [class]="dimmed() ? 'text-ink-muted line-through' : 'text-accent'" i18n="@@wish.price">ca. {{ currency() }} {{ w.price | number: '1.0-0' }}</span>
             }
             @if (w.quantity === null) {
               <span class="chip" i18n="@@wish.unlimited">gerne mehrere</span>

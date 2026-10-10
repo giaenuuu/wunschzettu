@@ -1,8 +1,8 @@
-import { CdkDialogContainer, DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
+import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Overlay } from '@angular/cdk/overlay';
 import { ComponentType } from '@angular/cdk/portal';
-import { ChangeDetectionStrategy, Component, Directive, Injectable, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Directive, Injectable, InjectionToken, inject, input } from '@angular/core';
 import { UiButton } from './button';
 import { UiIcon } from './icon';
 
@@ -13,6 +13,9 @@ export type DialogSize = 'sm' | 'md' | 'lg' | 'viewer';
 const widths: Record<DialogSize, string> = { sm: '26rem', md: '34rem', lg: '42rem', viewer: '96vw' };
 
 let nextId = 0;
+
+/** The id the dialog container is labelled by; <ui-dialog> puts it on its title. */
+const DIALOG_TITLE_ID = new InjectionToken<string>('DIALOG_TITLE_ID');
 
 /**
  * Opens dialogs: a centered card on wide screens, a bottom sheet on phones (in thumb reach).
@@ -27,8 +30,11 @@ export class Dialogs {
   open<C, D = unknown, R = unknown>(component: ComponentType<C>, options: { data?: D; size?: DialogSize } = {}): DialogRef<R, C> {
     const size = options.size ?? 'md';
     const sheet = size !== 'viewer' && !this.#breakpoints.isMatched('(min-width: 40rem)');
+    const titleId = `ui-dialog-title-${nextId++}`;
     return this.#dialog.open<R, D, C>(component, {
       data: options.data,
+      ariaLabelledBy: titleId,
+      providers: [{ provide: DIALOG_TITLE_ID, useValue: titleId }],
       backdropClass: 'ui-backdrop',
       panelClass: 'ui-dialog-pane',
       width: sheet ? '100%' : widths[size],
@@ -77,11 +83,7 @@ export class UiDialog {
   readonly title = input.required<string>();
   readonly subtitle = input<string>();
   protected readonly ref = inject(DialogRef);
-  protected readonly titleId = `ui-dialog-title-${nextId++}`;
-
-  constructor() {
-    inject(CdkDialogContainer, { optional: true })?._addAriaLabelledBy(this.titleId);
-  }
+  protected readonly titleId = inject(DIALOG_TITLE_ID, { optional: true }) ?? `ui-dialog-title-${nextId++}`;
 }
 
 /** Footer row of a <ui-dialog>: sticks to the bottom, clears the iPhone home indicator. */

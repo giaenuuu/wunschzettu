@@ -56,6 +56,8 @@ export function problemMessage(error: unknown): string {
       return $localize`:@@problem.tooManyLists:Du hast schon die maximale Anzahl Listen.`;
     case 'last-manager':
       return $localize`:@@problem.lastManager:Eine Liste braucht mindestens eine Person, die sie verwaltet.`;
+    case 'self-recipient':
+      return $localize`:@@problem.selfRecipient:Damit du keine Geschenke siehst, kann nur eine andere verwaltende Person dich als beschenkte Person entfernen.`;
     case 'already-member':
       return $localize`:@@problem.alreadyMember:Diese Person ist schon dabei.`;
     case 'date-in-past':

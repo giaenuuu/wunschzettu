@@ -10,7 +10,7 @@ export interface SegmentOption<T> {
 
 /**
  * Pick one of a few options, as a row of pills (an ARIA radio group with arrow-key navigation).
- * Works with `[formField]` or `[(value)]`. Use `stacked` for options that need room, e.g. on narrow screens.
+ * Works with `[formField]` or `[(value)]`. `stacked` lists the options one below the other on phones, for labels that need room.
  */
 @Component({
   selector: 'ui-segmented',
@@ -21,8 +21,9 @@ export interface SegmentOption<T> {
     <div
       role="radiogroup"
       [attr.aria-label]="label()"
-      class="inline-flex max-w-full gap-1 rounded-full bg-sunken p-1"
-      [class.w-full]="wide()"
+      class="inline-flex max-w-full gap-1 bg-sunken p-1"
+      [class]="stacked() ? 'flex-col rounded-3xl sm:flex-row sm:rounded-full' + (wide() ? '' : ' sm:w-auto') : 'rounded-full'"
+      [class.w-full]="wide() || stacked()"
       (keydown)="onKeydown($event)"
     >
       @for (o of options(); track o.value; let i = $index) {
@@ -35,7 +36,7 @@ export interface SegmentOption<T> {
           [disabled]="disabled()"
           (click)="value.set(o.value)"
           class="flex min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold whitespace-nowrap transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
-          [class]="(o.value === value() ? 'bg-raised text-ink shadow-sm ' : 'text-ink-muted hover:text-ink ') + (wide() ? 'flex-1' : 'flex-auto')"
+          [class]="(o.value === value() ? 'bg-raised text-ink shadow-sm ' : 'text-ink-muted hover:text-ink ') + (wide() ? 'flex-1 sm:flex-auto ' : 'flex-auto ') + (stacked() ? 'justify-start sm:justify-center' : '')"
         >
           @if (o.icon) {
             <ui-icon [name]="o.icon" [size]="18" />
@@ -52,6 +53,7 @@ export class UiSegmented<T> implements FormValueControl<T> {
   readonly label = input.required<string>();
   readonly disabled = input(false);
   readonly wide = input(false);
+  readonly stacked = input(false);
 
   private readonly buttons = viewChildren<ElementRef<HTMLButtonElement>>('option');
 

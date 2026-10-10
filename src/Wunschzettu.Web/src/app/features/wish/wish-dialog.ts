@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { applyEach, applyWhenValue, form, FormField, FormRoot, max, maxLength, min, required, validate } from '@angular/forms/signals';
 import { firstValueFrom } from 'rxjs';
 import { LinkKind, ScrapeResult, Wish, WishImage, WishRequest } from '../../core/api';
@@ -59,6 +59,7 @@ interface LinkModel {
             <label for="wish-url" class="sr-only" i18n="@@wishDialog.urlLabel">Link zum Produkt</label>
             <div class="flex flex-col gap-2 sm:flex-row">
               <input
+                #urlInput
                 id="wish-url"
                 class="control flex-1"
                 type="url"
@@ -85,7 +86,7 @@ interface LinkModel {
           <div class="flex items-center gap-3 text-sm text-ink-muted" aria-hidden="true">
             <span class="h-px flex-1 bg-line"></span><span i18n="@@common.or">oder</span><span class="h-px flex-1 bg-line"></span>
           </div>
-          <button type="button" class="card card-link flex cursor-pointer items-center gap-3 p-4 text-left" (click)="step.set('form')">
+          <button type="button" class="card card-link flex cursor-pointer items-center gap-3 p-4 text-left" (click)="goTo('form')">
             <span class="grid size-11 place-items-center rounded-2xl bg-sunken"><ui-icon name="edit_note" /></span>
             <span class="flex-1">
               <strong class="block" i18n="@@wishDialog.blankTitle">Selbst ausfüllen</strong>
@@ -99,6 +100,11 @@ interface LinkModel {
       <form [formRoot]="form" class="contents">
         <ui-dialog [title]="data.wish ? editTitle : newTitle">
           <div class="flex flex-col gap-7">
+            @if (!data.wish && !imported() && !importFailed()) {
+              <button uiButton variant="ghost" size="sm" type="button" class="-mt-3 -mb-4 self-start" (click)="goTo('start')">
+                <ui-icon name="wand_stars" [size]="18" /><span i18n="@@wishDialog.backToLink">Doch aus Link ausfüllen</span>
+              </button>
+            }
             @if (imported(); as source) {
               <p class="notice notice-accent items-center" role="status">
                 <ui-icon name="wand_stars" />
@@ -125,19 +131,22 @@ interface LinkModel {
             <fieldset class="flex flex-col gap-4">
               <legend class="sr-only" i18n="@@wishDialog.basics">Angaben</legend>
               <ui-field i18n-label="@@wish.name" label="Was wünschst du dir?">
-                <input uiControl [formField]="form.name" i18n-placeholder="@@wish.namePlaceholder" placeholder="z.B. Laufrad, rot" />
+                <input #nameInput uiControl [formField]="form.name" i18n-placeholder="@@wish.namePlaceholder" placeholder="z.B. Laufrad, rot" />
               </ui-field>
               <ui-field i18n-label="@@wish.description" label="Beschreibung" [optional]="true">
                 <textarea uiControl rows="3" [formField]="form.description" i18n-placeholder="@@wish.descriptionPlaceholder" placeholder="Grösse, Farbe, Modell …"></textarea>
               </ui-field>
-              <div class="grid gap-4 sm:grid-cols-2">
-                <ui-field i18n-label="@@wish.priceLabel" label="Preis ca." [optional]="true" [prefix]="data.currency">
-                  <input uiControl type="number" inputmode="decimal" [formField]="form.price" />
-                </ui-field>
-                <ui-field i18n-label="@@wish.gtinLabel" label="EAN (Strichcode-Nummer)" [optional]="true" i18n-hint="@@wish.gtinHint" hint="Damit man es auch in anderen Shops findet.">
+              <ui-field i18n-label="@@wish.priceLabel" label="Preis ca." [optional]="true" [prefix]="data.currency" class="sm:max-w-[calc(50%-0.5rem)]">
+                <input uiControl type="number" inputmode="decimal" [formField]="form.price" />
+              </ui-field>
+              <details class="group rounded-2xl" [open]="!!form.gtin().value()">
+                <summary class="flex w-fit cursor-pointer list-none items-center gap-1 rounded-full py-1 text-sm font-semibold text-ink-muted hover:text-ink [&::-webkit-details-marker]:hidden">
+                  <ui-icon name="keyboard_arrow_down" [size]="18" class="transition-transform group-open:rotate-180" /><span i18n="@@wishDialog.more">Mehr Angaben</span>
+                </summary>
+                <ui-field i18n-label="@@wish.gtinLabel" label="EAN (Strichcode-Nummer)" [optional]="true" i18n-hint="@@wish.gtinHint" hint="Damit man es auch in anderen Shops findet." class="mt-3 sm:max-w-[calc(50%-0.5rem)]">
                   <input uiControl inputmode="numeric" autocomplete="off" [formField]="form.gtin" placeholder="7610…" />
                 </ui-field>
-              </div>
+              </details>
             </fieldset>
 
             <fieldset class="flex flex-col gap-1 rounded-3xl bg-sunken/60 p-4">
@@ -169,13 +178,13 @@ interface LinkModel {
                 @for (img of images(); track img.id) {
                   <div class="relative size-24 overflow-hidden rounded-2xl bg-sunken">
                     <img [src]="img.thumbUrl" alt="" class="size-full object-cover" />
-                    <button type="button" class="thumb-remove" (click)="removeImage(img)" i18n-aria-label="@@wish.removeImage" aria-label="Bild entfernen"><ui-icon name="close" [size]="16" /></button>
+                    <button type="button" class="thumb-remove" (click)="removeImage(img)" i18n-aria-label="@@wish.removeImage" aria-label="Bild entfernen"><span><ui-icon name="close" [size]="16" /></span></button>
                   </div>
                 }
                 @for (p of pending(); track $index) {
                   <div class="relative size-24 overflow-hidden rounded-2xl bg-sunken ring-2 ring-accent/40">
                     <img [src]="p.kind === 'file' ? p.preview : p.url" alt="" class="size-full object-cover" referrerpolicy="no-referrer" />
-                    <button type="button" class="thumb-remove" (click)="removePending(p)" i18n-aria-label="@@wish.removeImage" aria-label="Bild entfernen"><ui-icon name="close" [size]="16" /></button>
+                    <button type="button" class="thumb-remove" (click)="removePending(p)" i18n-aria-label="@@wish.removeImage" aria-label="Bild entfernen"><span><ui-icon name="close" [size]="16" /></span></button>
                   </div>
                 }
                 @if (roomForImages() > 0) {
@@ -278,9 +287,12 @@ interface LinkModel {
     }
   `,
   styles: `
+    /* 40px to tap, 28px to see */
     .thumb-remove {
-      position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 28px; height: 28px;
-      border-radius: 999px; background: rgb(0 0 0 / 0.6); color: white; cursor: pointer;
+      position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 40px; height: 40px; cursor: pointer;
+    }
+    .thumb-remove > span {
+      display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: rgb(0 0 0 / 0.6); color: white;
     }
   `,
 })
@@ -288,6 +300,9 @@ export class WishDialog {
   protected readonly data = inject<WishDialogData>(DIALOG_DATA);
   protected readonly ref = inject<DialogRef<Wish>>(DialogRef);
   readonly #http = inject(HttpClient);
+  readonly #injector = inject(Injector);
+  private readonly urlInput = viewChild<ElementRef<HTMLInputElement>>('urlInput');
+  private readonly nameInput = viewChild('nameInput', { read: ElementRef<HTMLInputElement> });
 
   protected readonly maxLinks = maxLinks;
   protected readonly newTitle = $localize`:@@wishDialog.newTitle:Neuer Wunsch`;
@@ -311,6 +326,8 @@ export class WishDialog {
   protected readonly availability = signal<ScrapeResult['availability']>(null);
 
   protected readonly error = signal<string | null>(null);
+  /** The wish is stored, even if the dialog stays open because a picture failed. */
+  readonly saved = signal(false);
   protected readonly uploading = signal(false);
   protected readonly images = signal<WishImage[]>(this.data.wish?.images ?? []);
   protected readonly pending = signal<PendingImage[]>([]);
@@ -362,6 +379,12 @@ export class WishDialog {
     }
   }
 
+  /** Switching steps swaps the whole dialog content, so focus moves to the first field of the new step. */
+  protected goTo(step: 'start' | 'form') {
+    this.step.set(step);
+    afterNextRender(() => (step === 'form' ? this.nameInput() : this.urlInput())?.nativeElement.focus(), { injector: this.#injector });
+  }
+
   // ---- Start from a link
 
   protected onPaste(event: ClipboardEvent) {
@@ -391,7 +414,7 @@ export class WishDialog {
       // Many shops block robots. Keep the link and a name guessed from it; the rest is typed by hand.
       this.#model.update((m) => ({ ...m, name: m.name || this.data.shared?.title || (nameFromUrl(url) ?? ''), links: [onlineLink(url)] }));
       this.importFailed.set(hostOf(url));
-      this.step.set('form');
+      this.goTo('form');
     } finally {
       this.fetching.set(false);
     }
@@ -411,7 +434,7 @@ export class WishDialog {
     this.availability.set(r.availability);
     if (r.images.length) this.pending.set([{ kind: 'remote', url: r.images[0] }]);
     this.imported.set(r.siteName || hostOf(r.url));
-    this.step.set('form');
+    this.goTo('form');
   }
 
   protected isPicked(url: string) {
@@ -496,6 +519,7 @@ export class WishDialog {
       this.error.set(problemMessage(e));
       return;
     }
+    this.saved.set(true);
 
     // The wish is saved; pictures follow. A picture that fails doesn't undo the wish.
     this.uploading.set(true);

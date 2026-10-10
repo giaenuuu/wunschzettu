@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { applyWhen, email, form, FormField, FormRoot, max, maxLength, min, pattern, required } from '@angular/forms/signals';
 import { firstValueFrom } from 'rxjs';
 import { Wish } from '../../core/api';
@@ -34,7 +34,7 @@ export type GiftDialogResult = 'done' | 'taken';
   imports: [FormRoot, FormField, UiDialog, UiDialogActions, UiButton, UiControl, UiField, UiIcon],
   template: `
     <form [formRoot]="form" class="contents">
-      <ui-dialog [title]="title()" [subtitle]="intro()">
+      <ui-dialog [title]="title()" [subtitle]="data.wish.name">
         <div class="flex flex-col gap-4">
           @if (step() === 'code') {
             <p class="notice notice-accent">
@@ -42,9 +42,23 @@ export type GiftDialogResult = 'done' | 'taken';
               <span i18n="@@gift.codeSent">Diese E-Mail-Adresse ist schon bestätigt. Wir haben dir einen Code geschickt – gib ihn hier ein.</span>
             </p>
             <ui-field i18n-label="@@login.code" label="Code">
-              <input uiControl class="control-code" autocomplete="one-time-code" inputmode="numeric" [formField]="form.code" />
+              <input #codeInput uiControl class="control-code" autocomplete="one-time-code" inputmode="numeric" [formField]="form.code" />
             </ui-field>
+            <div class="flex flex-wrap gap-1.5">
+              <button uiButton variant="ghost" size="sm" type="button" [busy]="resending()" (click)="resendCode()">
+                <ui-icon name="refresh" [size]="18" /><span i18n="@@gift.resendCode">Code nochmals senden</span>
+              </button>
+              <button uiButton variant="ghost" size="sm" type="button" (click)="otherEmail()">
+                <ui-icon name="arrow_back" [size]="18" /><span i18n="@@gift.otherEmail">Andere E-Mail</span>
+              </button>
+            </div>
+            @if (resent()) {
+              <p class="text-sm text-ink-muted" role="status" i18n="@@gift.codeResent">Ein neuer Code ist unterwegs. Schau auch im Spam-Ordner nach.</p>
+            }
           } @else {
+            @if (intro()) {
+              <p class="text-ink-muted">{{ intro() }}</p>
+            }
             @if (auth.user(); as user) {
               <p class="flex items-center gap-3 rounded-2xl bg-sunken p-3">
                 <span class="grid size-9 place-items-center rounded-full bg-accent-soft font-bold text-on-accent-soft" aria-hidden="true">{{ (user.displayName || user.email).charAt(0).toUpperCase() }}</span>
@@ -92,7 +106,11 @@ export class GiftDialog {
   protected readonly ref = inject<DialogRef<GiftDialogResult>>(DialogRef);
   protected readonly auth = inject(Auth);
   readonly #http = inject(HttpClient);
+  readonly #injector = inject(Injector);
+  private readonly codeInput = viewChild('codeInput', { read: ElementRef<HTMLInputElement> });
 
+  protected readonly resending = signal(false);
+  protected readonly resent = signal(false);
   protected readonly step = signal<'details' | 'code'>('details');
   protected readonly error = signal<string | null>(null);
 
@@ -103,10 +121,9 @@ export class GiftDialog {
   );
 
   protected readonly title = computed(() => {
-    const name = this.data.wish.name;
     switch (this.data.mode) {
       case 'reserve':
-        return $localize`:@@gift.reserveTitle:Ich schenke «${name}:name:»`;
+        return $localize`:@@gift.reserveTitle:Ich schenke das`;
       case 'group':
         return $localize`:@@gift.groupTitle:Gemeinsam schenken`;
       case 'join':
@@ -116,18 +133,18 @@ export class GiftDialog {
     }
   });
 
+  /** The wish's name is the dialog's subtitle, so the sentences don't repeat it. */
   protected readonly intro = computed(() => {
-    const name = this.data.wish.name;
     const recipient = this.data.recipientName;
     switch (this.data.mode) {
       case 'reserve':
         return recipient
-          ? $localize`:@@gift.reserveIntroFor:Alle anderen sehen danach, dass «${name}:name:» vergeben ist. ${recipient}:recipient: sieht es nicht.`
-          : $localize`:@@gift.reserveIntro:Alle anderen sehen danach, dass «${name}:name:» vergeben ist – nur die beschenkte Person nicht.`;
+          ? $localize`:@@gift.reserveIntroFor:Alle anderen sehen danach, dass der Wunsch vergeben ist. ${recipient}:recipient: sieht es nicht.`
+          : $localize`:@@gift.reserveIntro:Alle anderen sehen danach, dass der Wunsch vergeben ist – nur die beschenkte Person nicht.`;
       case 'group':
-        return $localize`:@@gift.groupIntro:Du startest ein gemeinsames Geschenk für «${name}:name:». Andere können mitmachen und ihren Beitrag angeben.`;
+        return $localize`:@@gift.groupIntro:Du startest ein gemeinsames Geschenk. Andere können mitmachen und ihren Beitrag angeben.`;
       case 'join':
-        return $localize`:@@gift.joinIntro:Du legst bei «${name}:name:» mit den anderen zusammen.`;
+        return $localize`:@@gift.joinIntro:Du legst mit den anderen zusammen.`;
       default:
         return '';
     }
@@ -185,6 +202,26 @@ export class GiftDialog {
     { submission: { action: async (f) => this.#submit(f().value()) } },
   );
 
+  protected async resendCode() {
+    this.resending.set(true);
+    this.error.set(null);
+    try {
+      await this.auth.requestCode(this.form.email().value().trim(), `/l/${this.data.token}`);
+      this.resent.set(true);
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.resending.set(false);
+    }
+  }
+
+  protected otherEmail() {
+    this.form.code().value.set('');
+    this.resent.set(false);
+    this.error.set(null);
+    this.step.set('details');
+  }
+
   protected async switchUser() {
     await this.auth.logout();
   }
@@ -199,6 +236,7 @@ export class GiftDialog {
         const res = await this.auth.identify(v.email.trim(), v.displayName.trim(), `/l/${this.data.token}`);
         if (res.status === 'CodeSent') {
           this.step.set('code');
+          afterNextRender(() => this.codeInput()?.nativeElement.focus(), { injector: this.#injector });
           return;
         }
       }

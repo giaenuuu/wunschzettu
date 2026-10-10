@@ -30,7 +30,8 @@ public class Jobs(AppDbContext db, GiftService gifts, AuthService auth, Mailer m
     {
         var now = Now;
         var pending = await db.GiftParticipants
-            .Where(p => p.ExpiresAt != null && p.ExpiresAt > now && p.RemindersSent < 2 && p.Gift.ArchivedAt == null)
+            .Where(p => p.ExpiresAt != null && p.ExpiresAt > now && p.RemindersSent < 2 && p.Gift.ArchivedAt == null
+                && p.Gift.Wish.Wishlist.DeletedAt == null)
             .Include(p => p.User)
             .Include(p => p.Gift).ThenInclude(g => g.Wish).ThenInclude(w => w.Wishlist)
             .ToListAsync(ct);
@@ -65,7 +66,8 @@ public class Jobs(AppDbContext db, GiftService gifts, AuthService auth, Mailer m
     {
         var now = Now;
         var expired = await db.GiftParticipants
-            .Where(p => p.ExpiresAt != null && p.ExpiresAt <= now && p.Gift.ArchivedAt == null)
+            .Where(p => p.ExpiresAt != null && p.ExpiresAt <= now && p.Gift.ArchivedAt == null
+                && p.Gift.Wish.Wishlist.DeletedAt == null) // deleted lists are purged later; no mails about them
             .Select(p => new { p.GiftId, p.UserId })
             .ToListAsync(ct);
 

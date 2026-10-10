@@ -66,12 +66,6 @@ export class Auth {
   async logout(): Promise<void> {
     await firstValueFrom(this.#http.post('/api/auth/logout', null));
     this.#user.set(null);
-    // The service worker keeps API answers for offline use; they belong to the account that just left.
-    try {
-      for (const key of await caches.keys()) if (key.includes(':api-read:')) await caches.delete(key);
-    } catch {
-      // no Cache Storage (old browser, private mode)
-    }
   }
 
   #set(me: Me): Me {

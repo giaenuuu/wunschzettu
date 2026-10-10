@@ -81,8 +81,9 @@ public class OutboxSender(IServiceScopeFactory scopes, OutboxSignal signal, IMai
                     m.NextAttemptAt = now + TimeSpan.FromMinutes(Math.Min(Math.Pow(2, m.Attempts), 360));
                     logger.LogWarning(e, "Sending mail {Id} ({Type}) failed, attempt {Attempt}", m.Id, m.Type, m.Attempts);
                 }
+                // Saved per mail: a crash mid-batch must not send the ones before it again.
+                await db.SaveChangesAsync(CancellationToken.None);
             }
-            await db.SaveChangesAsync(ct);
         }
     }
 }

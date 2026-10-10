@@ -27,7 +27,7 @@ interface Step {
           <button uiButton variant="secondary" size="lg" (click)="install()"><ui-icon name="mobile_arrow_down" /><span i18n="@@install.now">Jetzt installieren</span></button>
         </div>
       }
-      <ui-segmented class="mb-5" [options]="platforms" [(value)]="platform" [wide]="true" i18n-label="@@install.platform" label="Gerät" />
+      <ui-segmented class="mb-5" [options]="platforms" [(value)]="platform" [wide]="true" [stacked]="true" i18n-label="@@install.platform" label="Gerät" />
       <ol class="flex flex-col gap-3">
         @for (s of steps[platform()]; track $index; let i = $index) {
           <li class="flex items-center gap-4 rounded-2xl bg-sunken/70 p-3.5">

@@ -35,7 +35,7 @@ export class InstallPage {
   protected readonly benefits = [
     { icon: 'apps', text: $localize`:@@install.b1:Eigenes Symbol auf dem Home-Bildschirm` },
     { icon: 'bolt', text: $localize`:@@install.b2:Startet schnell, ganz ohne Browser-Leiste` },
-    { icon: 'wifi_off', text: $localize`:@@install.b3:Zuletzt geöffnete Listen auch bei schlechtem Netz` },
+    { icon: 'photo_library', text: $localize`:@@install.b3:Bilder bleiben gespeichert, das spart Datenvolumen` },
     { icon: 'share', text: $localize`:@@install.b4:Produkte direkt aus Shop-Apps teilen (Android, Computer)` },
   ];
 }

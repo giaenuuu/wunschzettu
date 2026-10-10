@@ -112,6 +112,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, OutboxSignal? 
         });
     }
 
+    /// Another request changed the same wish (Version) or created the same row (unique key) first: retryable, not a bug.
+    public static bool IsWriteConflict(Exception e) =>
+        e is DbUpdateConcurrencyException or DbUpdateException { InnerException: Microsoft.Data.Sqlite.SqliteException { SqliteErrorCode: 19 } };
+
     /// Makes the next save bump <see cref="Wish.Version"/> and fail if someone else changed the wish meanwhile.
     public void Touch(Wish wish) => Entry(wish).Property(x => x.Version).IsModified = true;
 

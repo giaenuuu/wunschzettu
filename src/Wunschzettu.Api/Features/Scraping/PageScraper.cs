@@ -42,14 +42,16 @@ public partial class PageScraper(HttpClient http, IMemoryCache cache, ILogger<Pa
     {
         try
         {
+            using var timeout = Deadline(ct);
+            var token = timeout.Token;
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
             request.Headers.Accept.ParseAdd("text/html,application/xhtml+xml;q=0.9,*/*;q=0.5");
-            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
             var type = response.Content.Headers.ContentType?.MediaType;
             if (!response.IsSuccessStatusCode || type is not null && !type.Contains("html", StringComparison.OrdinalIgnoreCase))
                 return new(null, null, FetchError.Failed);
 
-            var (bytes, _) = await ReadCappedAsync(response, MaxHtmlBytes, truncate: true, ct);
+            var (bytes, _) = await ReadCappedAsync(response, MaxHtmlBytes, truncate: true, token);
             var html = Decode(bytes, response.Content.Headers.ContentType);
             var finalUrl = response.RequestMessage?.RequestUri ?? uri;
             return new(PageParser.Parse(html, finalUrl), finalUrl, FetchError.None);
@@ -66,14 +68,16 @@ public partial class PageScraper(HttpClient http, IMemoryCache cache, ILogger<Pa
         if (!SafeHttp.IsAllowedUrl(url, out var uri)) return new(null, FetchError.InvalidUrl);
         try
         {
+            using var timeout = Deadline(ct);
+            var token = timeout.Token;
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
             // Only formats SkiaSharp decodes. CDNs (AliExpress, Shopify, Cloudinary) answer AVIF to anyone who lists it.
             request.Headers.Accept.ParseAdd("image/webp,image/png,image/jpeg,image/gif;q=0.9,image/*;q=0.5");
-            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
             if (!response.IsSuccessStatusCode) return new(null, FetchError.Failed);
             if (response.Content.Headers.ContentLength > MaxImageBytes) return new(null, FetchError.TooLarge);
 
-            var (bytes, complete) = await ReadCappedAsync(response, MaxImageBytes, truncate: false, ct);
+            var (bytes, complete) = await ReadCappedAsync(response, MaxImageBytes, truncate: false, token);
             return complete ? new(bytes, FetchError.None) : new(null, FetchError.TooLarge);
         }
         catch (Exception e) when (IsFetchFailure(e, ct))
@@ -81,6 +85,14 @@ public partial class PageScraper(HttpClient http, IMemoryCache cache, ILogger<Pa
             log.LogInformation("Fetching image {Url} failed: {Error}", uri, e.Message);
             return new(null, Blocked(e) ? FetchError.InvalidUrl : FetchError.Failed);
         }
+    }
+
+    /// HttpClient.Timeout ends at the headers; a server dripping the body slowly must not hold the request open.
+    static CancellationTokenSource Deadline(CancellationToken ct)
+    {
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(SafeHttp.Timeout);
+        return cts;
     }
 
     static async Task<(byte[] Bytes, bool Complete)> ReadCappedAsync(HttpResponseMessage response, int max, bool truncate, CancellationToken ct)

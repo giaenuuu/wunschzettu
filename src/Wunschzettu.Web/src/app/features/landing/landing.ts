@@ -144,7 +144,7 @@ import { InstallGuide } from '../install/install-guide';
       <div>
         <p class="mb-2 text-sm font-bold tracking-[0.2em] text-accent uppercase" i18n="@@landing.appKicker">Ohne App Store</p>
         <h2 class="display mb-5 text-4xl sm:text-5xl" i18n="@@landing.appTitle">Wunschzettu auf dem Home-Bildschirm</h2>
-        <p class="mb-6 text-lg text-ink-muted" i18n="@@landing.appText">Wunschzettu ist eine Web-App: einmal hinzufügen, und sie startet wie jede andere App – mit eigenem Symbol, ohne Browser-Leiste, und zuletzt geöffnete Listen gehen auch bei schlechtem Netz auf.</p>
+        <p class="mb-6 text-lg text-ink-muted" i18n="@@landing.appText">Wunschzettu ist eine Web-App: einmal hinzufügen, und sie startet wie jede andere App – mit eigenem Symbol und ohne Browser-Leiste.</p>
         <a uiButton variant="outline" routerLink="/app"><ui-icon name="mobile_arrow_down" [size]="18" /><span i18n="@@landing.appMore">Ausführliche Anleitung</span></a>
       </div>
       <div class="card p-5 sm:p-6"><app-install-guide /></div>

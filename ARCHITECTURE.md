@@ -182,6 +182,7 @@ Guest opens /l/{token}
 
 ### Rules
 1. **The "you chose a wish" mail is the verification mail.** It has a one-click confirm button (magic link) and a 6-digit code. Clicking it confirms the email, clears `ExpiresAt` on all of that user's participations and signs them in on that device.
+   - The **first** confirmation changes the security stamp, so every other session of that account ends within minutes. Anyone can type someone's email before they ever confirm; such a session must not turn into a full login once the real owner confirms.
    - Links point to the SPA's `/confirm` page, which POSTs the token. A GET with side effects would be "clicked" by mail scanners.
    - Codes and link tokens are stored hashed, single-use. Login codes live 15 minutes, confirmation codes until the participation expires, invitations 7 days.
 2. **Unconfirmed actions are visible as such.** Other guests see "reserviert (unbestätigt)". Recipients see nothing, as always.
@@ -190,14 +191,14 @@ Guest opens /l/{token}
 4. **Unconfirmed identities are device-bound.** An unconfirmed user can only change or withdraw participations from the device that created them (cookie). On a new device they must confirm first.
 5. **Abuse limits:**
    - Rate-limit the auth endpoints per IP (built-in `RateLimiter`, 10/min by default).
-   - At most 5 codes per email address and hour (12 per day), each code dies after 5 wrong guesses, and 10 unconfirmed participations per user and day.
+   - At most 5 codes per email address and hour (12 per day), each code dies after 5 wrong guesses, and 10 unconfirmed participations per user and day. Sign-in and invitation mails are also capped for all addresses together (`App:MaxLoginMailsPerDay`, default 500), so cycling through addresses can't get the SMTP account blocked.
    - Typing an email only signs in without a code for accounts that hold nothing but their own gifts. Anyone invited (manager, recipient, invite-only guest) gets a code instead, even before their first confirmation. Everything that needs a manager or recipient membership requires a confirmed session.
    - Identity lockout after 5 wrong codes.
    - Identical responses for known and unknown emails.
 6. **Creating lists requires a confirmed email.** Anyone may create lists (no allowlist), but only after confirming. Upload limits per user apply (§9).
 7. **Sessions are long:** 90 days, sliding. Non-technical users should rarely see a login screen again.
 8. Managers log in the same way: email code or link.
-9. **Optional password.** A confirmed user may set a password in the profile (at least 8 characters, no composition rules) and then log in with email + password as an alternative to the code. Wrong passwords count towards the same lockout as codes, and every failure gets the same `invalid-login` answer. Setting, changing or removing it changes the security stamp: other sessions end within minutes, the current one is renewed. Forgotten passwords need no reset flow: log in with a code and set a new one. Passkeys are in §12.
+9. **Optional password.** A confirmed user may set a password in the profile (at least 8 characters, no composition rules) and then log in with email + password as an alternative to the code. Wrong passwords count towards the same lockout as codes, and every failure gets the same `invalid-login` answer. Setting, changing or removing it changes the security stamp: other sessions end within minutes, the current one is renewed. The owner gets a "Passwort geändert" mail every time, so a password set from a stolen session doesn't go unnoticed. Forgotten passwords need no reset flow: log in with a code and set a new one. Passkeys are in §12.
 
 ### Cookies and CSRF
 - Cookie: `HttpOnly`, `Secure`, `SameSite=Lax`. The SPA is same-origin, so no CORS and no JWT.
@@ -235,10 +236,13 @@ Enforced on the server, inside one transaction with the wish's `Version` as conc
 ### The no-leak principle (recipient)
 - **Nothing the recipient does is blocked by gift state, or behaves differently because of it.** That covers editing a wish, deleting it, lowering its quantity, and marking it Fulfilled.
 - Instead, the affected givers get a mail ("Der Wunsch, den du schenkst, wurde geändert / entfernt / ist schon erfüllt").
-- Deleting a wish that has Gifts sets `State = Removed` instead of deleting it. Givers still see it, greyed out and labelled "nicht mehr nötig". For the recipient it is gone.
+- Deleting a wish that has Gifts sets `State = Removed` instead of deleting it. Givers still see it, greyed out and labelled "nicht mehr nötig". For the recipient it is gone. Its images and preview thumbnails are deleted either way: old image URLs that kept answering would tell the recipient it was taken.
 - Lowering the quantity below the given units is allowed. Givers are notified; nobody is removed automatically.
 - The API response for a recipient has **no gift fields at all**, not even empty ones. Gift state lives on **separate endpoints** (`/api/shared/{token}/availability`, `/api/wishlists/{id}/gifts`) that answer recipients with 403 whatever the state; the wish endpoints never carry gift data. An integration test compares a recipient's responses before and after gifts byte by byte.
-- The member list only shows managers, recipients and explicitly invited guests, never guests who joined by giving.
+- The member list only shows managers, recipients and explicitly invited guests, never guests who joined by giving. Inviting such a guest restarts their join date, so the sort order doesn't hint at it either.
+- **Recipient status can't be dropped by oneself.** One click would show every gift; another manager has to do it.
+- **Becoming manager or recipient ends one's own giving on that list.** Someone who gave and is then invited as recipient (or co-manager) leaves those gifts as if they had withdrawn, so their overview and mails stop following them.
+- Reordering wishes writes the sort order without the `Version` check, so a reservation meanwhile never makes it fail.
 - The same applies to counts, sort order, error messages and timings: nothing in a recipient response may depend on gift state.
 
 ### After the event date
@@ -338,10 +342,14 @@ OpenAPI is generated by .NET at build time. The Angular client types are generat
 
 - **Outbox for mail** (§7).
 - **Soft delete** for lists (restorable for 30 days) and wishes (`Removed`).
-- **Concurrency token** on `Wish` for all gift operations.
+- **Concurrency token** on `Wish` for all gift operations. A guest whose reservation lost such a race (or a parallel request that created their membership) is retried on fresh data, up to 3 times; only a real shortage answers 409. Expected 409s aren't logged as errors.
+- **Manager changes** (demote, remove) check "at least one manager left" and write in one SQLite write transaction, so two managers removing each other can't leave a list without one.
 - **Uploads:** max 5 images per wish, 10 MB each before resizing, EXIF stripped (removes phone GPS). Per-user storage quota (default 200 MB, configurable). Max lists per user (default 20, configurable). These matter because anyone can create lists.
 - **Display name** is asked on first action, because participants need to recognise each other and emails are ugly for that.
-- **Fetching user-supplied URLs (SSRF):** scrape, image import and link previews go through one `HttpClient` whose `ConnectCallback` resolves DNS itself and connects only to public addresses (no loopback, private, link-local/cloud metadata, CGNAT, ULA, multicast, NAT64/6to4 tunnels to those), only on ports 80/443, at most 5 redirects (each one checked again), 8 s timeout, 2 MB of HTML, 10 MB per image. Rate limit: 30 requests per minute and user. The User-Agent says honestly who is asking.
+- **Fetching user-supplied URLs (SSRF):** scrape, image import and link previews go through one `HttpClient` whose `ConnectCallback` resolves DNS itself and connects only to public addresses (no loopback, private, link-local/cloud metadata, CGNAT, ULA, multicast, NAT64/6to4 tunnels to those), only on ports 80/443, at most 5 redirects (each one checked again), 8 s for the whole fetch including the body, 2 MB of HTML, 10 MB per image. Rate limit: 30 requests per minute and user. The User-Agent says honestly who is asking.
+- **Image decoding** is the most expensive thing the server does: at most 24 megapixels, JPEG/WebP decode straight at the target size, at most 2 decodes at a time, and uploads share the 30/min limit.
+- **Security headers** on every response: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`, a restrictive `Permissions-Policy`. HSTS is left to the proxy.
+- **Outbox** saves after every sent mail, so a crash mid-batch doesn't send mails twice. Reminders and releases skip deleted lists.
 - **Health** endpoint `/healthz`, structured console logs.
 
 ---
@@ -359,14 +367,15 @@ OpenAPI is generated by .NET at build time. The Angular client types are generat
   - `/l/:token`: guest view (the link people share)
   - `/profile`: name, language, optional password
 - **State**: signals, with one small service per feature. No NgRx.
-- **Design system** (`src/app/ui`, tokens in `styles.css`): semantic colour tokens (`paper`, `card`, `ink`, `accent`, …) use `light-dark()`, so components need no dark variants. Native inputs styled by `uiControl` inside `<ui-field>` (label, hint and validation message wired up with `aria-describedby`); `ui-switch`, `ui-segmented` and the theme pickers are signal-forms controls with ARIA roles and arrow-key navigation. Dialogs are bottom sheets on phones and centered cards on wider screens.
+- **Design system** (`src/app/ui`, tokens in `styles.css`): semantic colour tokens (`paper`, `card`, `ink`, `accent`, …) use `light-dark()`, so components need no dark variants. Native inputs styled by `uiControl` inside `<ui-field>` (label, hint and validation message wired up with `aria-describedby`); `ui-switch`, `ui-segmented` and the theme pickers are signal-forms controls with ARIA roles and arrow-key navigation (`ui-segmented stacked` stacks long options on phones instead of cutting them off). Dialogs are bottom sheets on phones and centered cards on wider screens; `Dialogs.open()` creates the title id, so every dialog is named by its heading. Buttons grow to 40px on touch screens; errors show next to the hint, not instead of it.
+- **Guest view:** taken wishes move to the end, greyed picture plus struck-through title and a stamp. An unconfirmed reservation offers "Mail nochmals senden" (a login code via `request-code`; using it confirms the address and keeps the reservation).
 - **Theming**: a list's palette class sets `--brand-h`/`--brand-c`; the `brand-*` scale and the `accent` tokens are recomputed inside it. Presets only, no free colour pickers or fonts, so lists stay pretty and accessible.
 - **Wishes from links**: a new wish starts from a pasted shop URL (`POST /api/scrape` prefills name, brand, description, price, EAN, pictures and the link, and warns when the shop says sold out) or from an empty form. The scraper reads what messengers use for link previews (Open Graph, Twitter cards) plus schema.org Product data (JSON-LD and microdata), strips the shop name from titles and ignores shop slogans posing as descriptions. It asks for WebP/PNG/JPEG only: CDNs answer AVIF to clients that list it, and SkiaSharp can't decode AVIF. When a shop blocks reading, the link is kept and the name comes from the shared title or is guessed from the URL.
 - **Sharing into Wunschzettu**: the manifest declares a Web Share Target (`/share`, GET with `title`/`text`/`url`). Sharing a product from a shop app or browser picks the list (skipped when there is only one) and opens the wish dialog with the link. Android and desktop Chrome/Edge; iOS doesn't support share targets.
 - **Sharing a list**: one "Teilen" button. Touch devices get the system share sheet; computers get a menu (copy, email, WhatsApp, Threema, Telegram, Facebook, plus the browser's own sheet if there is one).
 - **Taken, fulfilled and removed wishes** are greyed out, struck through and stamped ("Vergeben", "Erfüllt"), so nobody misreads them.
 - **EAN/GTIN** (optional, from the shop page or typed in) links to a price comparison.
-- **PWA**: `manifest.webmanifest` + Angular service worker (production builds only). The app shell and icons are cached; `/img` is cache-first (file names never change), the read-only list APIs are network-first with a cache fallback, so recently opened lists open offline. Cached API answers are dropped on logout. A toast offers a reload when a new version is ready. `/app` and the landing page explain installing per platform; Chrome/Edge get a real install button.
+- **PWA**: `manifest.webmanifest` + Angular service worker (production builds only). The app shell and icons are cached; `/img` is cache-first (file names never change), API answers are never cached: on a shared family device a cached guest view could show a recipient what's taken. A toast offers a reload when a new version is ready. `/app` and the landing page explain installing per platform; Chrome/Edge get a real install button.
 - **Easy for non-technical users**:
   - The list is visible straight from the link, without any login
   - Big wish cards, one clear primary action per card ("Ich schenke das" / "Ich beteilige mich")
@@ -405,13 +414,13 @@ services:
     volumes:
       - ./data:/data:z          # sqlite db + images + data-protection keys (z: SELinux hosts)
     ports:
-      - "8080:8080"             # or join your reverse-proxy network instead
+      - "127.0.0.1:8080:8080"   # only the proxy on this host; or join its network
 
 ```
 
-- **TLS** is handled by the reverse proxy; `ASPNETCORE_FORWARDEDHEADERS_ENABLED` makes the app trust its headers.
+- **TLS** is handled by the reverse proxy; `ASPNETCORE_FORWARDEDHEADERS_ENABLED` makes the app trust its headers. That is why the port must only be reachable by the proxy: Docker-published ports bypass the host firewall, and anyone reaching the app directly could fake `X-Forwarded-For` and dodge the per-IP login limit.
 - **Data Protection keys** are persisted to `/data/keys`, so cookies and magic links survive restarts.
-- **Migrations** run automatically on startup (fine for a single instance).
+- **Migrations** run automatically on startup (fine for a single instance). Before applying new ones to an existing database, the app writes a copy (`wunschzettu-before-update-<time>.db` in `/data`); delete old copies once the update is fine.
 - **Backup** means backing up `./data`. Use `sqlite3 .backup` or stop the container briefly for a consistent copy.
 - **Health**: `/healthz` for the proxy or Uptime Kuma.
 - **Logs**: structured console logs → `docker logs` / Loki.

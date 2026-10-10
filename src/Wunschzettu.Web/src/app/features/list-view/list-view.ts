@@ -1,9 +1,10 @@
 import { DatePipe } from '@angular/common';
-import { httpResource } from '@angular/common/http';
+import { HttpErrorResponse, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Availability, SharedList, WishAvailability } from '../../core/api';
 import { Auth } from '../../core/auth';
+import { problemMessage } from '../../core/problems';
 import { lastValue } from '../../shared/last-value';
 import { paletteClass } from '../../shared/palettes';
 import { RelativeDayPipe } from '../../shared/relative-day.pipe';
@@ -73,11 +74,19 @@ import { GiftStatus } from './gift-status';
             }
           }
 
+          @if (availability.error() && l.viewerRole !== 'Recipient') {
+            <p class="notice notice-warn mb-6 items-center" role="alert">
+              <ui-icon name="error" />
+              <span class="flex-1"><ng-container i18n="@@view.availabilityFailed">Was schon vergeben ist, konnten wir nicht laden.</ng-container> {{ problemMessage(availability.error()) }}</span>
+              <button uiButton variant="ghost" size="sm" (click)="refresh()" i18n="@@common.retry">Nochmals versuchen</button>
+            </p>
+          }
+
           @if (l.wishes.length) {
             <div class="mb-5 flex flex-wrap items-center gap-3">
               <h2 class="section-title flex-1" i18n="@@view.wishesTitle">Wünsche</h2>
               @if (isGuestView()) {
-                <ui-segmented class="w-full sm:w-auto" [wide]="true" [options]="filters()" [(value)]="onlyFree" i18n-label="@@view.filter" label="Filter" />
+                <ui-segmented class="w-full sm:w-auto sm:shrink-0" [wide]="true" [options]="filters()" [(value)]="onlyFree" i18n-label="@@view.filter" label="Filter" />
               }
             </div>
             <div class="grid items-start gap-5" [class]="l.theme.layout === 'List' ? 'grid-cols-1' : 'sm:grid-cols-2 lg:grid-cols-3'">
@@ -124,6 +133,13 @@ import { GiftStatus } from './gift-status';
           }
         </div>
       </div>
+    } @else if (list.error() && !isNotFound()) {
+      <div class="page page-narrow pt-16">
+        <ui-empty emoji="📡" i18n-title="@@view.loadFailedTitle" title="Die Liste lädt gerade nicht">
+          <span>{{ problemMessage(list.error()) }}</span>
+          <button uiEmptyAction uiButton variant="secondary" (click)="list.reload()" i18n="@@common.retry">Nochmals versuchen</button>
+        </ui-empty>
+      </div>
     } @else if (list.error()) {
       <div class="page page-narrow pt-16">
         <ui-empty emoji="🔍" i18n-title="@@view.notFoundTitle" title="Diese Liste gibt es nicht (mehr)">
@@ -148,6 +164,7 @@ export class ListView {
   readonly token = input.required<string>();
   protected readonly auth = inject(Auth);
   protected readonly paletteClass = paletteClass;
+  protected readonly problemMessage = problemMessage;
   protected readonly onlyFree = signal(false);
   protected readonly takenLabel = $localize`:@@wish.stampTaken:Vergeben`;
   protected readonly notNeededLabel = $localize`:@@gift.notNeeded:nicht mehr nötig`;
@@ -181,9 +198,16 @@ export class ListView {
   protected readonly byWish = computed(() => new Map((this.current()?.wishes ?? []).map((a) => [a.wishId, a])));
   protected readonly isGuestView = computed(() => this.list.value()?.viewerRole === 'Guest' && !!this.current());
   protected readonly freeCount = computed(() => (this.list.value()?.wishes ?? []).filter((w) => this.#isFree(w.id)).length);
+  /** Free wishes first, so guests don't scroll past taken ones. Recipients get no availability, so their order never changes. */
   protected readonly visibleWishes = computed(() => {
     const wishes = this.list.value()?.wishes ?? [];
-    return this.onlyFree() ? wishes.filter((w) => this.#isFree(w.id)) : wishes;
+    if (this.onlyFree()) return wishes.filter((w) => this.#isFree(w.id));
+    const taken = (id: string) => (this.isTakenByOthers(this.byWish().get(id)) ? 1 : 0);
+    return [...wishes].sort((a, b) => taken(a.id) - taken(b.id));
+  });
+  protected readonly isNotFound = computed(() => {
+    const error = this.list.error();
+    return error instanceof HttpErrorResponse ? error.status === 404 || error.status === 403 : false;
   });
   protected readonly filters = computed<SegmentOption<boolean>[]>(() => [
     { value: false, label: $localize`:@@view.all:Alle (${this.list.value()?.wishes.length ?? 0}:count:)` },

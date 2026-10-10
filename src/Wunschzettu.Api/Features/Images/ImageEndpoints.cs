@@ -22,7 +22,8 @@ public static class ImageEndpoints
 
         group.MapPost("/", Upload)
             .DisableAntiforgery() // CSRF is covered by the custom header (Csrf.cs)
-            .WithMetadata(new RequestSizeLimitAttribute(MaxUploadBytes + 64 * 1024));
+            .WithMetadata(new RequestSizeLimitAttribute(MaxUploadBytes + 64 * 1024))
+            .RequireRateLimiting(ScrapeEndpoints.RateLimitPolicy); // decoding is the most expensive thing the server does
         group.MapPost("/import", Import).RequireRateLimiting(ScrapeEndpoints.RateLimitPolicy);
         group.MapDelete("/{imageId:guid}", Delete);
     }

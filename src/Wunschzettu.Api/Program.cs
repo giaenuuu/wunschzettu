@@ -132,6 +132,10 @@ if (!isDocGeneration)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    // Some migrations rebuild tables outside a transaction; a copy beforehand makes a failed update recoverable.
+    if ((await db.Database.GetPendingMigrationsAsync()).Any() && (await db.Database.GetAppliedMigrationsAsync()).Any())
+        await db.Database.ExecuteSqlRawAsync("VACUUM INTO {0}",
+            Path.Combine(dataDir, $"wunschzettu-before-update-{DateTime.UtcNow:yyyyMMdd-HHmmss}.db"));
     await db.Database.MigrateAsync();
     await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
 }
@@ -141,14 +145,15 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
     StatusCodeSelector = ex => ex switch
     {
         BadHttpRequestException bad => bad.StatusCode,
-        // Two writers on the same wish: one wins, the other gets 409 and retries (§6.8).
-        DbUpdateConcurrencyException => StatusCodes.Status409Conflict,
-        // Two requests creating the same row (e.g. a guest's membership) at once: retryable, not a server error.
-        DbUpdateException { InnerException: Microsoft.Data.Sqlite.SqliteException { SqliteErrorCode: 19 } } => StatusCodes.Status409Conflict,
+        // Two writers on the same wish, or two requests creating the same row: one wins, the other gets 409 (§6.8).
+        _ when AppDbContext.IsWriteConflict(ex) => StatusCodes.Status409Conflict,
         _ => StatusCodes.Status500InternalServerError,
     },
+    // Expected races aren't errors worth a stack trace in the log.
+    SuppressDiagnosticsCallback = ctx => AppDbContext.IsWriteConflict(ctx.Exception),
 });
 app.UseStatusCodePages();
+app.UseSecurityHeaders();
 app.UseCsrfHeader();
 app.UseAuthentication();
 app.UseAuthorization();
