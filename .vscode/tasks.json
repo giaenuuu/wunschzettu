@@ -1,0 +1,42 @@
+{
+  // "Run Task" → "dev" starts API and UI together; open http://localhost:4200.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev",
+      "dependsOn": ["api", "web"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "api",
+      "type": "shell",
+      "command": "dotnet watch run --project src/Wunschzettu.Api --launch-profile http",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "dotnet",
+        "pattern": { "regexp": "^(.*)\\((\\d+),(\\d+)\\): (error|warning) (.*)$", "file": 1, "line": 2, "column": 3, "severity": 4, "message": 5 },
+        "background": { "activeOnStart": true, "beginsPattern": "dotnet watch", "endsPattern": "Application started|Waiting for a file to change" }
+      }
+    },
+    {
+      "label": "web",
+      "type": "npm",
+      "script": "start",
+      "path": "src/Wunschzettu.Web",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "typescript",
+        "pattern": "$tsc",
+        "background": { "activeOnStart": true, "beginsPattern": "Changes detected|Building", "endsPattern": "bundle generation (complete|failed)" }
+      }
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "dotnet test",
+      "group": "test",
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

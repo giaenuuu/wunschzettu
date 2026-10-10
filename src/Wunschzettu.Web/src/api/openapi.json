@@ -1,0 +1,2920 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Wunschzettu.Api | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/wishlists": {
+      "get": {
+        "tags": [
+          "Wishlists"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Wishlists"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWishlistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WishlistDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/scrape": {
+      "post": {
+        "tags": [
+          "Scraping"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScrapeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScrapeResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/identify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentifyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/request-code": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          }
+        }
+      }
+    },
+    "/api/auth/login-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/verify-code": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/confirm": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/password": {
+      "put": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/wishlists/{id}": {
+      "get": {
+        "tags": [
+          "Wishlists"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WishlistDetailDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Wishlists"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWishlistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Wishlists"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishlists/{id}/restore": {
+      "post": {
+        "tags": [
+          "Wishlists"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishlists/{id}/share-token": {
+      "post": {
+        "tags": [
+          "Wishlists"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareTokenDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishlists/{id}/gifts": {
+      "get": {
+        "tags": [
+          "Wishlists"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WishGiftsDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishlists/{id}/thanks": {
+      "get": {
+        "tags": [
+          "Wishlists"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ThanksEntryDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishlists/{listId}/wishes": {
+      "post": {
+        "tags": [
+          "Wishes"
+        ],
+        "parameters": [
+          {
+            "name": "listId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WishRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WishDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishlists/{listId}/wishes/order": {
+      "put": {
+        "tags": [
+          "Wishes"
+        ],
+        "parameters": [
+          {
+            "name": "listId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}": {
+      "put": {
+        "tags": [
+          "Wishes"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WishRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WishDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Wishes"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/fulfil": {
+      "post": {
+        "tags": [
+          "Wishes"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Wishes"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/shared/{token}": {
+      "get": {
+        "tags": [
+          "Shared"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedListDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/shared/{token}/availability": {
+      "get": {
+        "tags": [
+          "Shared"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/shared/{token}/wishes/{wishId}/gifts": {
+      "post": {
+        "tags": [
+          "Shared"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "wishId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGiftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftRefDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/shared/{token}/gifts/{giftId}/participants": {
+      "post": {
+        "tags": [
+          "Shared"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "giftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticipateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/gifts/{giftId}/participants/me": {
+      "put": {
+        "tags": [
+          "Gifts"
+        ],
+        "parameters": [
+          {
+            "name": "giftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticipateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Gifts"
+        ],
+        "parameters": [
+          {
+            "name": "giftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/gifts/{giftId}/bought": {
+      "post": {
+        "tags": [
+          "Gifts"
+        ],
+        "parameters": [
+          {
+            "name": "giftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Gifts"
+        ],
+        "parameters": [
+          {
+            "name": "giftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/wishlists/{id}/members": {
+      "get": {
+        "tags": [
+          "Members"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MemberDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Members"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishlists/{id}/members/{userId}": {
+      "put": {
+        "tags": [
+          "Members"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMemberRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Members"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishes/{wishId}/images": {
+      "post": {
+        "tags": [
+          "Images"
+        ],
+        "parameters": [
+          {
+            "name": "wishId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "file"
+                ],
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WishImageDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishes/{wishId}/images/import": {
+      "post": {
+        "tags": [
+          "Images"
+        ],
+        "parameters": [
+          {
+            "name": "wishId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportImageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WishImageDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/wishes/{wishId}/images/{imageId}": {
+      "delete": {
+        "tags": [
+          "Images"
+        ],
+        "parameters": [
+          {
+            "name": "wishId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "imageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Availability": {
+        "enum": [
+          "InStock",
+          "OutOfStock",
+          "PreOrder",
+          null
+        ]
+      },
+      "AvailabilityDto": {
+        "required": [
+          "wishes",
+          "removedWishes"
+        ],
+        "type": "object",
+        "properties": {
+          "wishes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WishAvailabilityDto"
+            }
+          },
+          "removedWishes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RemovedWishDto"
+            }
+          }
+        }
+      },
+      "ConfirmRequest": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          }
+        }
+      },
+      "CreateGiftRequest": {
+        "required": [
+          "isGroup",
+          "units",
+          "amount",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "isGroup": {
+            "type": "boolean"
+          },
+          "units": {
+            "maximum": 999,
+            "minimum": 1,
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "amount": {
+            "maximum": 1000000,
+            "minimum": 0,
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "message": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CreateWishlistRequest": {
+        "required": [
+          "title",
+          "description",
+          "recipientName",
+          "eventDate",
+          "currency",
+          "theme"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recipientName": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eventDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "theme": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThemeDto"
+              }
+            ]
+          },
+          "forMe": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "DashboardDto": {
+        "required": [
+          "mine",
+          "sharedWithMe",
+          "myGifts"
+        ],
+        "type": "object",
+        "properties": {
+          "mine": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WishlistSummaryDto"
+            }
+          },
+          "sharedWithMe": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WishlistSummaryDto"
+            }
+          },
+          "myGifts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyGiftSummaryDto"
+            }
+          }
+        }
+      },
+      "GiftDto": {
+        "required": [
+          "giftId",
+          "isGroup",
+          "units",
+          "status",
+          "pledgedTotal",
+          "participants"
+        ],
+        "type": "object",
+        "properties": {
+          "giftId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isGroup": {
+            "type": "boolean"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GiftStatus"
+          },
+          "pledgedTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParticipantDto"
+            }
+          }
+        }
+      },
+      "GiftRefDto": {
+        "required": [
+          "giftId"
+        ],
+        "type": "object",
+        "properties": {
+          "giftId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "GiftStatus": {
+        "enum": [
+          "Planned",
+          "Bought"
+        ]
+      },
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "IdentifyRequest": {
+        "required": [
+          "email",
+          "displayName",
+          "language",
+          "returnUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "type": "string"
+          },
+          "displayName": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "language": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "returnUrl": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "IdentifyResponse": {
+        "required": [
+          "status",
+          "user"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/IdentifyStatus"
+          },
+          "user": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MeDto"
+              }
+            ]
+          }
+        }
+      },
+      "IdentifyStatus": {
+        "enum": [
+          "SignedIn",
+          "CodeSent"
+        ]
+      },
+      "IFormFile": {
+        "type": "string",
+        "format": "binary"
+      },
+      "ImportImageRequest": {
+        "required": [
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
+          }
+        }
+      },
+      "InviteRequest": {
+        "required": [
+          "email",
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MemberRole"
+          }
+        }
+      },
+      "LinkKind": {
+        "enum": [
+          "Online",
+          "Store"
+        ]
+      },
+      "LinkPreviewDto": {
+        "required": [
+          "title",
+          "siteName",
+          "imageUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ListAccess": {
+        "enum": [
+          "Link",
+          "Invited"
+        ]
+      },
+      "ListLayout": {
+        "enum": [
+          "Grid",
+          "List"
+        ]
+      },
+      "MeDto": {
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "emailConfirmed",
+          "language",
+          "hasPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "emailConfirmed": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": "string"
+          },
+          "hasPassword": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MemberDto": {
+        "required": [
+          "userId",
+          "displayName",
+          "email",
+          "isManager",
+          "isRecipient",
+          "confirmed",
+          "isMe"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "isManager": {
+            "type": "boolean"
+          },
+          "isRecipient": {
+            "type": "boolean"
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "isMe": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MemberRole": {
+        "enum": [
+          "Manager",
+          "Recipient",
+          "Guest"
+        ]
+      },
+      "MyGiftDto": {
+        "required": [
+          "giftId",
+          "isGroup",
+          "units",
+          "status",
+          "isOrganizer",
+          "amount",
+          "message",
+          "expiresAt",
+          "canModify",
+          "pledgedTotal",
+          "participants"
+        ],
+        "type": "object",
+        "properties": {
+          "giftId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isGroup": {
+            "type": "boolean"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GiftStatus"
+          },
+          "isOrganizer": {
+            "type": "boolean"
+          },
+          "amount": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "canModify": {
+            "type": "boolean"
+          },
+          "pledgedTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParticipantDto"
+            }
+          }
+        }
+      },
+      "MyGiftSummaryDto": {
+        "required": [
+          "giftId",
+          "wishId",
+          "wishName",
+          "wishState",
+          "listTitle",
+          "shareToken",
+          "theme",
+          "eventDate",
+          "isGroup",
+          "units",
+          "status",
+          "isOrganizer",
+          "unconfirmed",
+          "participantCount"
+        ],
+        "type": "object",
+        "properties": {
+          "giftId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "wishId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "wishName": {
+            "type": "string"
+          },
+          "wishState": {
+            "$ref": "#/components/schemas/WishState"
+          },
+          "listTitle": {
+            "type": "string"
+          },
+          "shareToken": {
+            "type": "string"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/ThemeDto"
+          },
+          "eventDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "isGroup": {
+            "type": "boolean"
+          },
+          "units": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GiftStatus"
+          },
+          "isOrganizer": {
+            "type": "boolean"
+          },
+          "unconfirmed": {
+            "type": "boolean"
+          },
+          "participantCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "OpenGroupDto": {
+        "required": [
+          "giftId",
+          "participantCount"
+        ],
+        "type": "object",
+        "properties": {
+          "giftId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "participantCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Palette": {
+        "enum": [
+          "Classic",
+          "Forest",
+          "Ocean",
+          "Berry",
+          "Sunset",
+          "Night"
+        ]
+      },
+      "ParticipantDto": {
+        "required": [
+          "name",
+          "amount",
+          "message",
+          "isOrganizer",
+          "unconfirmed",
+          "isMe"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "amount": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isOrganizer": {
+            "type": "boolean"
+          },
+          "unconfirmed": {
+            "type": "boolean"
+          },
+          "isMe": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ParticipateRequest": {
+        "required": [
+          "amount",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "maximum": 1000000,
+            "minimum": 0,
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "message": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PasswordLoginRequest": {
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 0,
+            "type": "string"
+          }
+        }
+      },
+      "RemovedWishDto": {
+        "required": [
+          "wish",
+          "mine"
+        ],
+        "type": "object",
+        "properties": {
+          "wish": {
+            "$ref": "#/components/schemas/WishDto"
+          },
+          "mine": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyGiftDto"
+            }
+          }
+        }
+      },
+      "RequestCodeRequest": {
+        "required": [
+          "email",
+          "language",
+          "returnUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "type": "string"
+          },
+          "language": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "returnUrl": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ScrapeRequest": {
+        "required": [
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
+          }
+        }
+      },
+      "ScrapeResultDto": {
+        "required": [
+          "url",
+          "title",
+          "description",
+          "price",
+          "currency",
+          "siteName",
+          "images",
+          "brand",
+          "gtin",
+          "availability"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "brand": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gtin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "availability": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Availability"
+              }
+            ]
+          }
+        }
+      },
+      "SetPasswordRequest": {
+        "required": [
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "password": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          }
+        }
+      },
+      "SharedListDto": {
+        "required": [
+          "id",
+          "title",
+          "description",
+          "recipientName",
+          "eventDate",
+          "currency",
+          "theme",
+          "viewerRole",
+          "showGiverNames",
+          "wishes"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recipientName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eventDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/ThemeDto"
+          },
+          "viewerRole": {
+            "$ref": "#/components/schemas/ViewerRole"
+          },
+          "showGiverNames": {
+            "type": "boolean"
+          },
+          "wishes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WishDto"
+            }
+          }
+        }
+      },
+      "ShareTokenDto": {
+        "required": [
+          "shareToken"
+        ],
+        "type": "object",
+        "properties": {
+          "shareToken": {
+            "type": "string"
+          }
+        }
+      },
+      "ThanksEntryDto": {
+        "required": [
+          "wishId",
+          "wishName",
+          "isGroup",
+          "givers"
+        ],
+        "type": "object",
+        "properties": {
+          "wishId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "wishName": {
+            "type": "string"
+          },
+          "isGroup": {
+            "type": "boolean"
+          },
+          "givers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParticipantDto"
+            }
+          }
+        }
+      },
+      "ThemeDto": {
+        "required": [
+          "palette",
+          "emoji",
+          "layout"
+        ],
+        "type": "object",
+        "properties": {
+          "palette": {
+            "$ref": "#/components/schemas/Palette"
+          },
+          "emoji": {
+            "maxLength": 16,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "layout": {
+            "$ref": "#/components/schemas/ListLayout"
+          }
+        }
+      },
+      "UpdateMemberRequest": {
+        "required": [
+          "isManager",
+          "isRecipient"
+        ],
+        "type": "object",
+        "properties": {
+          "isManager": {
+            "type": "boolean"
+          },
+          "isRecipient": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UpdateMeRequest": {
+        "required": [
+          "displayName",
+          "language"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateWishlistRequest": {
+        "required": [
+          "title",
+          "description",
+          "recipientName",
+          "eventDate",
+          "currency",
+          "access",
+          "showGiverNames",
+          "theme"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recipientName": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eventDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "type": "string"
+          },
+          "access": {
+            "$ref": "#/components/schemas/ListAccess"
+          },
+          "showGiverNames": {
+            "type": "boolean"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/ThemeDto"
+          }
+        }
+      },
+      "VerifyCodeRequest": {
+        "required": [
+          "email",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "type": "string"
+          },
+          "code": {
+            "pattern": "^\\s*\\d{6}\\s*$",
+            "type": "string"
+          }
+        }
+      },
+      "ViewerRole": {
+        "enum": [
+          "Guest",
+          "Manager",
+          "Recipient"
+        ]
+      },
+      "WishAvailabilityDto": {
+        "required": [
+          "wishId",
+          "available",
+          "takenUnits",
+          "hasUnconfirmed",
+          "givers",
+          "openGroup",
+          "mine"
+        ],
+        "type": "object",
+        "properties": {
+          "wishId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "available": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "takenUnits": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasUnconfirmed": {
+            "type": "boolean"
+          },
+          "givers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "openGroup": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OpenGroupDto"
+              }
+            ]
+          },
+          "mine": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyGiftDto"
+            }
+          }
+        }
+      },
+      "WishDto": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "price",
+          "gtin",
+          "isFavorite",
+          "quantity",
+          "groupGiftAllowed",
+          "state",
+          "links",
+          "images"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "gtin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isFavorite": {
+            "type": "boolean"
+          },
+          "quantity": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "groupGiftAllowed": {
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WishState"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WishLinkDto"
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WishImageDto"
+            }
+          }
+        }
+      },
+      "WishGiftsDto": {
+        "required": [
+          "wishId",
+          "wishName",
+          "wishState",
+          "quantity",
+          "takenUnits",
+          "gifts"
+        ],
+        "type": "object",
+        "properties": {
+          "wishId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "wishName": {
+            "type": "string"
+          },
+          "wishState": {
+            "$ref": "#/components/schemas/WishState"
+          },
+          "quantity": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "takenUnits": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gifts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GiftDto"
+            }
+          }
+        }
+      },
+      "WishImageDto": {
+        "required": [
+          "id",
+          "url",
+          "thumbUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "url": {
+            "type": "string"
+          },
+          "thumbUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "WishLinkDto": {
+        "required": [
+          "kind",
+          "label",
+          "url",
+          "note",
+          "preview"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/LinkKind"
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "preview": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkPreviewDto"
+              }
+            ]
+          }
+        }
+      },
+      "WishLinkRequest": {
+        "required": [
+          "kind",
+          "label",
+          "url",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/LinkKind"
+          },
+          "label": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "WishlistDetailDto": {
+        "required": [
+          "id",
+          "title",
+          "description",
+          "recipientName",
+          "eventDate",
+          "currency",
+          "access",
+          "showGiverNames",
+          "theme",
+          "shareToken",
+          "isManager",
+          "isRecipient",
+          "canSeeGifts",
+          "canShowThanks",
+          "wishes"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recipientName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eventDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "access": {
+            "$ref": "#/components/schemas/ListAccess"
+          },
+          "showGiverNames": {
+            "type": "boolean"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/ThemeDto"
+          },
+          "shareToken": {
+            "type": "string"
+          },
+          "isManager": {
+            "type": "boolean"
+          },
+          "isRecipient": {
+            "type": "boolean"
+          },
+          "canSeeGifts": {
+            "type": "boolean"
+          },
+          "canShowThanks": {
+            "type": "boolean"
+          },
+          "wishes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WishDto"
+            }
+          }
+        }
+      },
+      "WishlistSummaryDto": {
+        "required": [
+          "id",
+          "title",
+          "recipientName",
+          "eventDate",
+          "theme",
+          "shareToken",
+          "wishCount",
+          "isManager",
+          "isRecipient"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eventDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/ThemeDto"
+          },
+          "shareToken": {
+            "type": "string"
+          },
+          "wishCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isManager": {
+            "type": "boolean"
+          },
+          "isRecipient": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WishRequest": {
+        "required": [
+          "name",
+          "description",
+          "price",
+          "gtin",
+          "isFavorite",
+          "quantity",
+          "groupGiftAllowed",
+          "links"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "maximum": 1000000,
+            "minimum": 0,
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "gtin": {
+            "pattern": "^(\\d{8}|\\d{12,14})$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isFavorite": {
+            "type": "boolean"
+          },
+          "quantity": {
+            "maximum": 999,
+            "minimum": 1,
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "groupGiftAllowed": {
+            "type": "boolean"
+          },
+          "links": {
+            "maxItems": 10,
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/WishLinkRequest"
+            }
+          }
+        }
+      },
+      "WishState": {
+        "enum": [
+          "Active",
+          "Fulfilled",
+          "Removed"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Wishlists"
+    },
+    {
+      "name": "Scraping"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Wishes"
+    },
+    {
+      "name": "Shared"
+    },
+    {
+      "name": "Gifts"
+    },
+    {
+      "name": "Members"
+    },
+    {
+      "name": "Images"
+    }
+  ]
+}

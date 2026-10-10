@@ -1,0 +1,23 @@
+services:
+  app:
+    image: wunschzettu:latest
+    build: .
+    restart: unless-stopped
+    environment:
+      App__BaseUrl: "https://wunsch.example.home"
+      # TLS ends at the reverse proxy; trust its X-Forwarded-* headers.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      Logging__Console__FormatterName: json
+      # Smtp__Host: "smtp.example.com"
+      # Smtp__Port: "587"
+      # Smtp__User: "..."
+      # Smtp__Password: "..."
+      # Smtp__From: "Wunschzettu <noreply@example.com>"
+    # Run as the owner of ./data (check with `id -u` / `id -g` on the host).
+    user: "1000:1000"
+    volumes:
+      # sqlite db + images + data-protection keys. z: needed on SELinux hosts, ignored elsewhere.
+      - ./data:/data:z
+    ports:
+      - "8080:8080" # or join your reverse-proxy network instead
+

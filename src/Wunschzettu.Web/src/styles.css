@@ -1,0 +1,343 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/figtree';
+@import '@fontsource-variable/fraunces/soft.css';
+@import '@angular/cdk/overlay-prebuilt.css';
+@import '@angular/cdk/a11y-prebuilt.css';
+
+/*
+ * Design tokens. Colours are OKLCH and follow the colour scheme through light-dark(), so no `dark:` variants are needed:
+ * the OS decides, the menu can pin one (core/color-scheme.ts), and the Night palette forces dark on its own container.
+ *
+ * `brand-*` is the list palette. Each `.palette-*` sets a hue and a chroma; the scale below is recomputed on every
+ * element that carries a palette, so `bg-brand-500` inside a list follows that list's colours.
+ */
+@theme {
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
+
+  --color-paper: light-dark(oklch(0.982 0.012 78), oklch(0.17 0.014 25));
+  --color-card: light-dark(oklch(0.997 0.004 78), oklch(0.215 0.016 25));
+  --color-sunken: light-dark(oklch(0.952 0.016 72), oklch(0.255 0.018 25));
+  --color-raised: light-dark(oklch(1 0 0), oklch(0.27 0.02 25));
+  --color-ink: light-dark(oklch(0.24 0.03 25), oklch(0.95 0.012 70));
+  --color-ink-muted: light-dark(oklch(0.47 0.03 30), oklch(0.76 0.022 50));
+  --color-line: light-dark(oklch(0.89 0.016 65), oklch(0.33 0.02 25));
+  --color-line-strong: light-dark(oklch(0.78 0.02 55), oklch(0.45 0.025 30));
+
+  --color-accent: light-dark(var(--color-brand-600), var(--color-brand-400));
+  --color-accent-hover: light-dark(var(--color-brand-700), var(--color-brand-300));
+  --color-on-accent: light-dark(oklch(1 0 0), var(--color-brand-950));
+  --color-accent-soft: light-dark(var(--color-brand-100), oklch(from var(--color-brand-800) l c h / 0.45));
+  --color-on-accent-soft: light-dark(var(--color-brand-900), var(--color-brand-100));
+  --color-accent-line: light-dark(var(--color-brand-200), var(--color-brand-800));
+
+  --color-gold: light-dark(oklch(0.8 0.15 80), oklch(0.82 0.14 82));
+  --color-gold-soft: light-dark(oklch(0.95 0.06 88), oklch(0.32 0.06 80));
+  --color-on-gold-soft: light-dark(oklch(0.42 0.09 70), oklch(0.9 0.08 88));
+
+  --color-success: light-dark(oklch(0.52 0.13 150), oklch(0.78 0.14 150));
+  --color-success-soft: light-dark(oklch(0.95 0.045 150), oklch(0.3 0.05 150));
+  --color-warn-soft: light-dark(oklch(0.95 0.07 90), oklch(0.32 0.06 85));
+  --color-on-warn-soft: light-dark(oklch(0.42 0.09 70), oklch(0.9 0.09 90));
+  --color-danger: light-dark(oklch(0.53 0.2 27), oklch(0.72 0.17 25));
+  --color-danger-soft: light-dark(oklch(0.95 0.03 25), oklch(0.32 0.07 25));
+
+  --color-brand-50: oklch(0.975 calc(var(--brand-c) * 0.12) var(--brand-h));
+  --color-brand-100: oklch(0.945 calc(var(--brand-c) * 0.28) var(--brand-h));
+  --color-brand-200: oklch(0.89 calc(var(--brand-c) * 0.5) var(--brand-h));
+  --color-brand-300: oklch(0.81 calc(var(--brand-c) * 0.75) var(--brand-h));
+  --color-brand-400: oklch(0.72 calc(var(--brand-c) * 0.92) var(--brand-h));
+  --color-brand-500: oklch(0.62 var(--brand-c) var(--brand-h));
+  --color-brand-600: oklch(0.53 var(--brand-c) var(--brand-h));
+  --color-brand-700: oklch(0.46 calc(var(--brand-c) * 0.9) var(--brand-h));
+  --color-brand-800: oklch(0.38 calc(var(--brand-c) * 0.75) var(--brand-h));
+  --color-brand-900: oklch(0.3 calc(var(--brand-c) * 0.6) var(--brand-h));
+  --color-brand-950: oklch(0.22 calc(var(--brand-c) * 0.45) var(--brand-h));
+
+  --radius-card: 1.5rem;
+  --shadow-card: 0 1px 2px oklch(0.3 0.03 30 / 0.06), 0 8px 24px -12px oklch(0.3 0.05 30 / 0.18);
+  --shadow-lift: 0 2px 4px oklch(0.3 0.03 30 / 0.08), 0 18px 40px -16px oklch(0.3 0.06 30 / 0.3);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --animate-rise: rise 420ms var(--ease-spring) both;
+  --animate-fade: fade 200ms ease-out both;
+  --animate-sheet: sheet 320ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  --animate-pop: pop 260ms var(--ease-spring) both;
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  }
+  @keyframes fade {
+    from { opacity: 0; }
+  }
+  @keyframes sheet {
+    from { transform: translateY(100%); }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.94); }
+  }
+}
+
+/* The cranberry default; lists override it. The scale is redeclared where a palette applies (see @theme). */
+:root {
+  --brand-h: 14;
+  --brand-c: 0.175;
+}
+.palette-classic { --brand-h: 14; --brand-c: 0.175; }
+.palette-forest { --brand-h: 152; --brand-c: 0.12; }
+.palette-ocean { --brand-h: 245; --brand-c: 0.14; }
+.palette-berry { --brand-h: 335; --brand-c: 0.17; }
+.palette-sunset { --brand-h: 48; --brand-c: 0.16; }
+.palette-night { --brand-h: 290; --brand-c: 0.15; color-scheme: dark; }
+
+[class*='palette-'] {
+  --color-brand-50: oklch(0.975 calc(var(--brand-c) * 0.12) var(--brand-h));
+  --color-brand-100: oklch(0.945 calc(var(--brand-c) * 0.28) var(--brand-h));
+  --color-brand-200: oklch(0.89 calc(var(--brand-c) * 0.5) var(--brand-h));
+  --color-brand-300: oklch(0.81 calc(var(--brand-c) * 0.75) var(--brand-h));
+  --color-brand-400: oklch(0.72 calc(var(--brand-c) * 0.92) var(--brand-h));
+  --color-brand-500: oklch(0.62 var(--brand-c) var(--brand-h));
+  --color-brand-600: oklch(0.53 var(--brand-c) var(--brand-h));
+  --color-brand-700: oklch(0.46 calc(var(--brand-c) * 0.9) var(--brand-h));
+  --color-brand-800: oklch(0.38 calc(var(--brand-c) * 0.75) var(--brand-h));
+  --color-brand-900: oklch(0.3 calc(var(--brand-c) * 0.6) var(--brand-h));
+  --color-brand-950: oklch(0.22 calc(var(--brand-c) * 0.45) var(--brand-h));
+  --color-accent: light-dark(var(--color-brand-600), var(--color-brand-400));
+  --color-accent-hover: light-dark(var(--color-brand-700), var(--color-brand-300));
+  --color-on-accent: light-dark(oklch(1 0 0), var(--color-brand-950));
+  --color-accent-soft: light-dark(var(--color-brand-100), oklch(from var(--color-brand-800) l c h / 0.45));
+  --color-on-accent-soft: light-dark(var(--color-brand-900), var(--color-brand-100));
+  --color-accent-line: light-dark(var(--color-brand-200), var(--color-brand-800));
+  color: var(--color-ink);
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2.5px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-accent-soft);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* ---- Layout */
+  .page {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 68rem;
+    padding: 1.25rem 1rem 6rem;
+  }
+  @media (width >= 40rem) {
+    .page { padding-inline: 1.5rem; }
+  }
+  .page-narrow { max-width: 34rem; }
+
+  .display {
+    font-family: var(--font-display);
+    font-variation-settings: 'SOFT' 100;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-variation-settings: 'SOFT' 100;
+    font-weight: 600;
+    font-size: 1.375rem;
+    letter-spacing: -0.01em;
+  }
+
+  /* ---- Surfaces */
+  .card {
+    background: var(--color-card);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-link {
+    transition: transform 180ms var(--ease-spring), box-shadow 180ms ease, border-color 180ms ease;
+  }
+  .card-link:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lift);
+    border-color: var(--color-accent-line);
+  }
+  .card-link:active { transform: translateY(-1px) scale(0.995); }
+
+  .notice {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.875rem 1rem;
+    border-radius: 1.125rem;
+    background: var(--color-sunken);
+    color: var(--color-ink-muted);
+  }
+  .notice-warn { background: var(--color-warn-soft); color: var(--color-on-warn-soft); }
+  .notice-accent { background: var(--color-accent-soft); color: var(--color-on-accent-soft); }
+
+  /* ---- Chips */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    line-height: 1.5rem;
+    white-space: nowrap;
+    background: var(--color-sunken);
+    color: var(--color-ink-muted);
+  }
+  .chip-accent { background: var(--color-accent-soft); color: var(--color-on-accent-soft); }
+  .chip-gold { background: var(--color-gold-soft); color: var(--color-on-gold-soft); }
+  .chip-success { background: var(--color-success-soft); color: var(--color-success); }
+  .chip-warn { background: var(--color-warn-soft); color: var(--color-on-warn-soft); }
+
+  /* ---- Form controls (see ui/field.ts) */
+  .control {
+    width: 100%;
+    min-height: 3rem;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.875rem;
+    border: 1.5px solid var(--color-line);
+    background: var(--color-raised);
+    color: var(--color-ink);
+    font: inherit;
+    font-size: 1rem; /* 16px keeps iOS from zooming in */
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .control::placeholder { color: color-mix(in oklch, var(--color-ink-muted) 70%, transparent); }
+  .control:hover { border-color: var(--color-line-strong); }
+  .control:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-accent) 18%, transparent);
+  }
+  .control[aria-invalid='true'] { border-color: var(--color-danger); }
+  .control:disabled { opacity: 0.6; cursor: not-allowed; }
+  textarea.control { min-height: 5.5rem; resize: vertical; line-height: 1.5; }
+  select.control {
+    appearance: none;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23888'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1.25rem;
+  }
+  .control-code {
+    text-align: center;
+    font-size: 1.75rem;
+    letter-spacing: 0.4em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- Menus (CDK menu, see app.ts) */
+  .menu {
+    min-width: 14rem;
+    max-width: 20rem;
+    padding: 0.375rem;
+    border-radius: 1.125rem;
+    background: var(--color-raised);
+    border: 1px solid var(--color-line);
+    box-shadow: var(--shadow-lift);
+    animation: var(--animate-pop);
+    transform-origin: top right;
+  }
+  .menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.75rem;
+    text-align: left;
+    color: var(--color-ink);
+    cursor: pointer;
+  }
+  .menu-item:hover, .menu-item:focus-visible { background: var(--color-sunken); outline: none; }
+  .menu-item[aria-checked='true'] { color: var(--color-accent); font-weight: 600; }
+  .menu-separator { height: 1px; margin: 0.375rem 0.5rem; background: var(--color-line); }
+
+  /* ---- Postage-stamp frame for list emojis */
+  .stamp {
+    display: grid;
+    place-items: center;
+    flex: none;
+    background: var(--color-accent-soft);
+    --stamp-r: 5px;
+    mask:
+      radial-gradient(var(--stamp-r) at var(--stamp-r) 50%, #0000 98%, #000) calc(-1 * var(--stamp-r)) 0 / 100% calc(var(--stamp-r) * 3.2),
+      radial-gradient(var(--stamp-r) at 50% var(--stamp-r), #0000 98%, #000) 0 calc(-1 * var(--stamp-r)) / calc(var(--stamp-r) * 3.2) 100%;
+    mask-composite: intersect;
+  }
+}
+
+/* Keyframes used from templates (animate-[name_…]). Global on purpose: Angular renames keyframes in component styles. */
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes float { 50% { transform: translateY(-14px) rotate(-6deg); } }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@keyframes wave { 20%, 60% { transform: rotate(14deg); } 40%, 80% { transform: rotate(-8deg); } }
+@keyframes loading { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+@utility pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* CDK overlay & dialog plumbing (see ui/dialog.ts). */
+.cdk-overlay-backdrop.ui-backdrop {
+  background: oklch(0.2 0.03 25 / 0.45);
+  backdrop-filter: blur(3px);
+}
+.cdk-overlay-pane.ui-dialog-pane {
+  max-height: 100dvh;
+}
+.cdk-overlay-pane.ui-dialog-pane > .cdk-dialog-container {
+  display: block;
+  width: 100%;
+  outline: none;
+}

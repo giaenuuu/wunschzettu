@@ -1,0 +1,49 @@
+{
+  "name": "wunschzettu.web",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "icons": "node scripts/sync-icons.mjs",
+    "prestart": "npm run icons",
+    "start": "ng serve",
+    "prebuild": "npm run icons",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test --watch=false",
+    "api:types": "npx -y openapi-typescript@7.13.0 src/api/openapi.json -o src/api/schema.d.ts",
+    "i18n:extract": "ng extract-i18n --format json --output-path src/locale",
+    "i18n:check": "npm run i18n:extract && node scripts/i18n-check.mjs",
+    "e2e": "node e2e/smoke.mjs"
+  },
+  "private": true,
+  "packageManager": "npm@11.19.0",
+  "dependencies": {
+    "@angular/cdk": "^22.2.2",
+    "@angular/common": "^22.2.0",
+    "@angular/compiler": "^22.2.0",
+    "@angular/core": "^22.2.0",
+    "@angular/forms": "^22.2.0",
+    "@angular/platform-browser": "^22.2.0",
+    "@angular/router": "^22.2.0",
+    "@angular/service-worker": "^22.2.2",
+    "@fontsource-variable/figtree": "^5.3.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.2",
+    "@angular/cli": "^22.2.2",
+    "@angular/compiler-cli": "^22.2.0",
+    "@angular/localize": "^22.2.2",
+    "@material-symbols/svg-400": "^0.48.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "jsdom": "^30.0.0",
+    "playwright": "^1.64.0",
+    "postcss": "^8.5.29",
+    "prettier": "^3.8.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.0"
+  }
+}

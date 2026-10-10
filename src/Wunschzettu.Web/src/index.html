@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de-CH">
+  <head>
+    <meta charset="utf-8" />
+    <title>Wunschzettu</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Wunschlisten erstellen, teilen und gemeinsam schenken – ohne Spoiler." />
+    <meta name="theme-color" content="#fef8f0" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#150d0c" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" href="pwa/apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Wunschzettu" />
+    <script>
+      // Apply the saved colour scheme before first paint, so dark mode never flashes white.
+      try {
+        const s = localStorage.getItem('wz.scheme');
+        if (s === 'light' || s === 'dark') document.documentElement.style.colorScheme = s;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <app-root></app-root>
+    <noscript>Wunschzettu braucht JavaScript. · Wunschzettu needs JavaScript.</noscript>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+services:
+  dev:
+    image: mcr.microsoft.com/devcontainers/dotnet:10.0-noble
+    command: sleep infinity
+    volumes:
+      # z: lets containers read the repo on SELinux hosts (Fedora, openSUSE); ignored elsewhere.
+      - ..:/workspaces/wunschzettu:z
+      # Kept in volumes: faster than a bind mount on macOS/Windows, and native npm binaries
+      # (esbuild etc.) never mix between host and container.
+      - web-node-modules:/workspaces/wunschzettu/src/Wunschzettu.Web/node_modules
+      - nuget-packages:/home/vscode/.nuget/packages
+    environment:
+      # Used once mail sending exists (ARCHITECTURE §7). Mails show up in Mailpit on port 8025.
+      Smtp__Host: mailpit
+      Smtp__Port: "1025"
+      Smtp__From: "Wunschzettu <noreply@wunschzettu.local>"
+
+  mailpit:
+    image: axllent/mailpit
+
+volumes:
+  web-node-modules:
+  nuget-packages:

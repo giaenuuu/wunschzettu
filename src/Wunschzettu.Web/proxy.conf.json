@@ -1,0 +1,14 @@
+{
+  "/api": {
+    "target": "http://localhost:5299",
+    "secure": false
+  },
+  "/healthz": {
+    "target": "http://localhost:5299",
+    "secure": false
+  },
+  "/img": {
+    "target": "http://localhost:5299",
+    "secure": false
+  }
+}
