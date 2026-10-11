@@ -444,7 +444,9 @@ services:
 - **Startup warnings** in production when `App:BaseUrl` still points to localhost, `App:Operator` is missing or no SMTP host is set.
 
 ### Go-live checklist
-1. DNS name and TLS at the reverse proxy (plus HSTS there); the proxy forwards `X-Forwarded-For`/`-Proto`.
+Step by step with commands and proxy examples: [DEPLOYMENT.md](DEPLOYMENT.md).
+
+1. DNS name and TLS at the reverse proxy (plus HSTS there); the proxy forwards the real client IP in `X-Forwarded-For` (behind a Cloudflare Tunnel: `CF-Connecting-IP`), or all visitors share one login limit.
 2. `App__BaseUrl` = the public address (links in mails).
 3. SMTP with a real sender domain; set SPF, DKIM and DMARC for it, or login mails end up in spam.
 4. `App__Operator__*` filled in; read the imprint, privacy policy and terms once and adapt them if needed (e.g. your mail provider's country, how long your off-site backups live: the policy says at most 30 days).
