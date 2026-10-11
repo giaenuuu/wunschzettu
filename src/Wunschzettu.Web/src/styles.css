@@ -41,6 +41,8 @@
   --color-on-warn-soft: light-dark(oklch(0.42 0.09 70), oklch(0.9 0.09 90));
   --color-danger: light-dark(oklch(0.53 0.2 27), oklch(0.72 0.17 25));
   --color-danger-soft: light-dark(oklch(0.95 0.03 25), oklch(0.32 0.07 25));
+  /* Text on danger: dark mode's danger is a light red, so its text turns dark. */
+  --color-on-danger: light-dark(oklch(1 0 0), oklch(0.2 0.05 25));
 
   --color-brand-50: oklch(0.975 calc(var(--brand-c) * 0.12) var(--brand-h));
   --color-brand-100: oklch(0.945 calc(var(--brand-c) * 0.28) var(--brand-h));
@@ -167,6 +169,16 @@
     .page { padding-inline: 1.5rem; }
   }
   .page-narrow { max-width: 34rem; }
+
+  /* ---- Long-form text (legal pages) */
+  .legal { max-width: 46rem; line-height: 1.65; }
+  .legal h2 { margin-top: 2.25rem; margin-bottom: 0.5rem; font-size: 1.2rem; font-weight: 700; }
+  .legal p, .legal address { margin-top: 0.75rem; }
+  .legal .lead { margin-top: 1.25rem; font-size: 1.075rem; }
+  .legal ul { margin-top: 0.75rem; padding-left: 1.25rem; list-style: disc; }
+  .legal li + li { margin-top: 0.4rem; }
+  .legal a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+  .legal code { border-radius: 0.3rem; background: var(--color-sunken); padding: 0.05rem 0.3rem; font-size: 0.9em; }
 
   .display {
     font-family: var(--font-display);

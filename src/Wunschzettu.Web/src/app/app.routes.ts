@@ -21,5 +21,8 @@ export const routes: Routes = [
     loadComponent: () => import('./features/thanks/thanks').then((m) => m.Thanks),
   },
   { path: 'l/:token', loadComponent: () => import('./features/list-view/list-view').then((m) => m.ListView) },
-  { path: '**', redirectTo: '' },
+  { path: 'impressum', loadComponent: () => import('./features/legal/imprint').then((m) => m.Imprint) },
+  { path: 'datenschutz', loadComponent: () => import('./features/legal/privacy').then((m) => m.Privacy) },
+  { path: 'nutzungsbedingungen', loadComponent: () => import('./features/legal/terms').then((m) => m.Terms) },
+  { path: '**', loadComponent: () => import('./features/not-found').then((m) => m.NotFound) },
 ];

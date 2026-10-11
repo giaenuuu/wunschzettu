@@ -13,7 +13,16 @@ services:
       # Smtp__User: "..."
       # Smtp__Password: "..."
       # Smtp__From: "Wunschzettu <noreply@example.com>"
+      # Smtp__Security: Auto   # 465 → TLS, otherwise STARTTLS required; None only for local test servers
+      # Shown in the imprint and privacy policy (required before going live):
+      # App__Operator__Name: "Vorname Nachname"
+      # App__Operator__Email: "kontakt@example.com"
+      # App__Operator__Address: "Strasse 1, 3000 Bern, Schweiz"
     # Run as the owner of ./data (check with `id -u` / `id -g` on the host).
+    # The privacy policy promises logs are kept at most 14 days; size-based rotation keeps them short.
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
     user: "1000:1000"
     volumes:
       # sqlite db + images + data-protection keys. z: needed on SELinux hosts, ignored elsewhere.

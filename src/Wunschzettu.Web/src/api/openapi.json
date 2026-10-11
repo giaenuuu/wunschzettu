@@ -5,6 +5,25 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/legal": {
+      "get": {
+        "tags": [
+          "Legal"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/wishlists": {
       "get": {
         "tags": [
@@ -73,6 +92,87 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ScrapeResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me/deletion-code": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
                 }
               }
             }
@@ -218,55 +318,6 @@
         }
       }
     },
-    "/api/auth/me": {
-      "get": {
-        "tags": [
-          "Auth"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeDto"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Auth"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateMeRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeDto"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/auth/password": {
       "put": {
         "tags": [
@@ -295,6 +346,30 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/auth/logout-everywhere": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/auth/me/export": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -1460,6 +1535,18 @@
           }
         }
       },
+      "DeleteAccountRequest": {
+        "required": [
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "pattern": "^\\s*\\d{6}\\s*$",
+            "type": "string"
+          }
+        }
+      },
       "GiftDto": {
         "required": [
           "giftId",
@@ -1654,6 +1741,34 @@
           },
           "role": {
             "$ref": "#/components/schemas/MemberRole"
+          }
+        }
+      },
+      "LegalDto": {
+        "required": [
+          "operatorName",
+          "operatorEmail",
+          "operatorAddress"
+        ],
+        "type": "object",
+        "properties": {
+          "operatorName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "operatorEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "operatorAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2892,6 +3007,9 @@
     }
   },
   "tags": [
+    {
+      "name": "Legal"
+    },
     {
       "name": "Wishlists"
     },

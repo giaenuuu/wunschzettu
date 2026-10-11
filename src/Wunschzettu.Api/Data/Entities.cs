@@ -149,7 +149,7 @@ public class GiftParticipant
     public AppUser User { get; set; } = null!;
 }
 
-public enum LoginCodePurpose { Login, Confirm, Invite }
+public enum LoginCodePurpose { Login, Confirm, Invite, DeleteAccount }
 
 /// A one-time login: a 6-digit code to type in and a token for links. Only hashes are stored.
 public class LoginCode

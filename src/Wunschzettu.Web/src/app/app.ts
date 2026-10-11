@@ -116,6 +116,11 @@ import { UiToaster } from './ui/toaster';
           <a routerLink="/app" class="font-medium text-ink-muted underline-offset-4 hover:text-accent hover:underline" i18n="@@app.install">App installieren</a>
         }
         <a routerLink="/" fragment="faq" class="font-medium text-ink-muted underline-offset-4 hover:text-accent hover:underline" i18n="@@footer.faq">Fragen &amp; Antworten</a>
+        <nav class="flex w-full flex-wrap gap-x-5 gap-y-2 text-xs" i18n-aria-label="@@footer.legal" aria-label="Rechtliches">
+          <a routerLink="/impressum" class="text-ink-muted underline-offset-4 hover:text-accent hover:underline" i18n="@@footer.imprint">Impressum</a>
+          <a routerLink="/datenschutz" class="text-ink-muted underline-offset-4 hover:text-accent hover:underline" i18n="@@footer.privacy">Datenschutz</a>
+          <a routerLink="/nutzungsbedingungen" class="text-ink-muted underline-offset-4 hover:text-accent hover:underline" i18n="@@footer.terms">Nutzungsbedingungen</a>
+        </nav>
       </div>
     </footer>
 

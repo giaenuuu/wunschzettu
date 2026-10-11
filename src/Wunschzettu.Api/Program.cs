@@ -44,8 +44,8 @@ builder.Services
         o.User.RequireUniqueEmail = true;
         o.User.AllowedUserNameCharacters = ""; // user names are the email addresses, validated as such
         o.SignIn.RequireConfirmedEmail = false;
-        o.Lockout.MaxFailedAccessAttempts = 5;
-        o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        // No account lockout: a stranger could keep anyone locked out. LoginThrottle and per-code limits instead.
+        o.Lockout.AllowedForNewUsers = false;
         // Length over composition rules (NIST 800-63B); the upper bound is in SetPasswordRequest.
         o.Password.RequiredLength = 8;
         o.Password.RequireDigit = false;
@@ -63,7 +63,8 @@ builder.Services.ConfigureApplicationCookie(o =>
 {
     o.Cookie.Name = "wz_session";
     o.Cookie.HttpOnly = true;
-    o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    // Behind the TLS proxy always Secure, even if it forgets X-Forwarded-Proto. Plain HTTP only for local development.
+    o.Cookie.SecurePolicy = builder.Environment.IsProduction() ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
     o.Cookie.SameSite = SameSiteMode.Lax;
     o.ExpireTimeSpan = TimeSpan.FromDays(90);
     o.SlidingExpiration = true;
@@ -95,6 +96,8 @@ builder.Services.AddRateLimiter(o =>
 
 // Features
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddSingleton<LoginThrottle>();
+builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<GiftService>();
 builder.Services.AddScoped<Mailer>();
 builder.Services.AddScoped<Jobs>();
@@ -140,6 +143,18 @@ if (!isDocGeneration)
     await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
 }
 
+if (app.Environment.IsProduction() && !isDocGeneration)
+{
+    // Going live without these works, but mails would point nowhere, or the imprint would be empty.
+    var startup = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    if (appOptions.BaseUrl.Contains("localhost"))
+        startup.LogWarning("App:BaseUrl is still {BaseUrl}; links in mails won't work. Set it to the public address.", appOptions.BaseUrl);
+    if (string.IsNullOrWhiteSpace(appOptions.Operator.Name) || string.IsNullOrWhiteSpace(appOptions.Operator.Email))
+        startup.LogWarning("App:Operator (Name, Email, Address) is not set; the imprint and privacy policy show a warning instead.");
+    if (string.IsNullOrEmpty(config["Smtp:Host"]))
+        startup.LogWarning("Smtp:Host is not set; mails are only written to the log, so nobody can sign in.");
+}
+
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
     StatusCodeSelector = ex => ex switch
@@ -163,6 +178,7 @@ app.UseImageFiles();
 app.MapOpenApi();
 app.MapHealthChecks("/healthz");
 app.MapAuthEndpoints();
+app.MapLegalEndpoint();
 app.MapWishlistEndpoints();
 app.MapWishEndpoints();
 app.MapSharedEndpoints();

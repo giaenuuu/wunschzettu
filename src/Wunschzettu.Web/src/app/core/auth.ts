@@ -63,6 +63,22 @@ export class Auth {
     return this.#set(await firstValueFrom(this.#http.put<Me>('/api/auth/me', { displayName, language })));
   }
 
+  /** Ends every other session (other phones, a forgotten computer); this one stays signed in. */
+  logoutEverywhere(): Promise<unknown> {
+    return firstValueFrom(this.#http.post('/api/auth/logout-everywhere', null));
+  }
+
+  /** A code by mail that only deletes the account (its mail has no sign-in button). */
+  requestDeletionCode(): Promise<unknown> {
+    return firstValueFrom(this.#http.post('/api/auth/me/deletion-code', null));
+  }
+
+  /** Irreversible. The code comes from requestDeletionCode, so a stolen session alone can't delete an account. */
+  async deleteAccount(code: string): Promise<void> {
+    await firstValueFrom(this.#http.delete('/api/auth/me', { body: { code } }));
+    this.#user.set(null);
+  }
+
   async logout(): Promise<void> {
     await firstValueFrom(this.#http.post('/api/auth/logout', null));
     this.#user.set(null);

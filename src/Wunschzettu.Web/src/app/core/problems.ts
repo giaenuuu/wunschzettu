@@ -41,7 +41,7 @@ export function problemMessage(error: unknown): string {
     case 'scrape-failed':
       return $localize`:@@problem.scrapeFailed:Die Seite konnte nicht gelesen werden. Füll die Angaben einfach selbst aus.`;
     case 'invalid-code':
-      return $localize`:@@problem.invalidCode:Der Code stimmt nicht oder ist abgelaufen.`;
+      return $localize`:@@problem.invalidCode:Der Code stimmt nicht oder ist abgelaufen. Tipp auf den Button in der Mail oder fordere einen neuen Code an.`;
     case 'invalid-token':
       return $localize`:@@problem.invalidToken:Dieser Link ist ungültig, abgelaufen oder wurde schon benutzt.`;
     case 'too-many-images':

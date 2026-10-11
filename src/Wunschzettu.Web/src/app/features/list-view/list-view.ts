@@ -1,10 +1,11 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse, httpResource } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { Availability, SharedList, WishAvailability } from '../../core/api';
 import { Auth } from '../../core/auth';
 import { problemMessage } from '../../core/problems';
+import { deviceList } from '../../shared/device-lists';
 import { lastValue } from '../../shared/last-value';
 import { paletteClass } from '../../shared/palettes';
 import { RelativeDayPipe } from '../../shared/relative-day.pipe';
@@ -61,7 +62,38 @@ import { GiftStatus } from './gift-status';
               </div>
             }
             @default {
-              @if (!auth.loggedIn()) {
+              @if (gate() === 'mine') {
+                <section class="card mb-8 flex flex-col items-center gap-3 p-6 text-center sm:p-8" aria-labelledby="gate-title">
+                  <span class="text-5xl" aria-hidden="true">🙈</span>
+                  <h2 id="gate-title" class="display text-2xl" i18n="@@view.gateMineTitle">Das ist deine Wunschliste</h2>
+                  <p class="max-w-md text-ink-muted" i18n="@@view.gateMineText">Auf diesem Gerät hast du sie schon als beschenkte Person geöffnet. Melde dich an – dann bleibt verborgen, was schon verschenkt ist.</p>
+                  <a uiButton size="lg" routerLink="/login" [queryParams]="{ returnUrl: '/l/' + token() }"><ui-icon name="login" /><span i18n="@@view.gateLogin">Anmelden</span></a>
+                  <button uiButton variant="ghost" size="sm" (click)="showAnyway()">
+                    @if (l.recipientName) {
+                      <ng-container i18n="@@view.gateNotMe">Ich bin nicht {{ l.recipientName }} – trotzdem anzeigen</ng-container>
+                    } @else {
+                      <ng-container i18n="@@view.gateNotRecipient">Ich bin nicht die beschenkte Person – trotzdem anzeigen</ng-container>
+                    }
+                  </button>
+                </section>
+              } @else if (gate() === 'ask') {
+                <section class="card mb-8 flex flex-col items-center gap-3 p-6 text-center sm:p-8" aria-labelledby="gate-title">
+                  <span class="text-5xl" aria-hidden="true">🎁</span>
+                  <h2 id="gate-title" class="display text-2xl" i18n="@@view.gateAskTitle">Möchtest du etwas schenken?</h2>
+                  <p class="max-w-md text-ink-muted" i18n="@@view.gateAskText">Dann zeigen wir dir, was noch frei ist. Ist das deine eigene Liste? Dann tipp auf «Das ist meine Liste» – sonst ist die Überraschung weg.</p>
+                  <div class="mt-1 flex w-full flex-col justify-center gap-2 sm:w-auto sm:flex-row">
+                    <button uiButton size="lg" (click)="showAnyway()"><ui-icon name="redeem" /><span i18n="@@view.gateGive">Ich möchte etwas schenken</span></button>
+                    <button uiButton variant="outline" size="lg" (click)="claimMine()" i18n="@@view.gateOwn">Das ist meine Liste</button>
+                  </div>
+                </section>
+              } @else if (gate() === 'notRecipient') {
+                <section class="card mb-8 flex flex-col items-center gap-3 p-6 text-center sm:p-8" aria-labelledby="gate-title">
+                  <span class="text-5xl" aria-hidden="true">🙈</span>
+                  <h2 id="gate-title" class="display text-2xl" i18n="@@view.gateNotRecipientTitle">Du bist nicht als beschenkte Person eingetragen</h2>
+                  <p class="max-w-md text-ink-muted" i18n="@@view.gateNotRecipientText">Du bist angemeldet, aber für diese Liste nicht als beschenkte Person eingetragen – deshalb würden wir dir zeigen, was schon verschenkt ist. Bitte die Person, die die Liste verwaltet, dich einzuladen.</p>
+                  <button uiButton variant="ghost" size="sm" (click)="showAnyway()" i18n="@@view.gateShowAnyway">Ich schenke hier etwas – trotzdem anzeigen</button>
+                </section>
+              } @else if (!auth.loggedIn()) {
                 <ol class="mb-8 grid gap-3 sm:grid-cols-3" i18n-aria-label="@@view.howTitle" aria-label="So funktioniert's">
                   @for (s of howSteps; track s.icon; let i = $index) {
                     <li class="flex items-center gap-3 rounded-2xl bg-sunken/70 p-3 text-sm">
@@ -84,7 +116,7 @@ import { GiftStatus } from './gift-status';
 
           @if (l.wishes.length) {
             <div class="mb-5 flex flex-wrap items-center gap-3">
-              <h2 class="section-title flex-1" i18n="@@view.wishesTitle">Wünsche</h2>
+              <h2 #wishesTitle tabindex="-1" class="section-title flex-1 outline-none" i18n="@@view.wishesTitle">Wünsche</h2>
               @if (isGuestView()) {
                 <ui-segmented class="w-full sm:w-auto sm:shrink-0" [wide]="true" [options]="filters()" [(value)]="onlyFree" i18n-label="@@view.filter" label="Filter" />
               }
@@ -176,6 +208,44 @@ export class ListView {
   ];
 
   protected readonly list = httpResource<SharedList>(() => `/api/shared/${this.token()}`);
+
+  /**
+   * Signed out, the server can't tell a recipient from a guest. So nobody signed out sees what's taken
+   * before saying they want to give something, and a device that opened the list as recipient before
+   * asks to sign in first (ARCHITECTURE §5 accepted limitation).
+   */
+  readonly #router = inject(Router);
+  readonly #myLists = deviceList('wz.myLists');
+  readonly #guestOk = deviceList('wz.guestOk');
+  protected readonly gate = computed<'mine' | 'ask' | 'notRecipient' | null>(() => {
+    const token = this.token();
+    if (this.#guestOk.has(token)) return null;
+    // Signed in, the server only knows invited recipients. A list made "for Lena" without inviting her shows Lena
+    // as a guest, so signed-in guests choose once too; if the device knows the list as hers, she gets told why.
+    if (this.auth.loggedIn()) {
+      if (this.list.value()?.viewerRole !== 'Guest') return null;
+      return this.#myLists.has(token) ? 'notRecipient' : 'ask';
+    }
+    return this.#myLists.has(token) ? 'mine' : 'ask';
+  });
+  private readonly wishesTitle = viewChild<ElementRef<HTMLElement>>('wishesTitle');
+
+  constructor() {
+    effect(() => {
+      if (this.list.value()?.viewerRole === 'Recipient') this.#myLists.add(this.token());
+    });
+  }
+
+  protected claimMine() {
+    this.#myLists.add(this.token());
+    if (!this.auth.loggedIn()) this.#router.navigate(['/login'], { queryParams: { returnUrl: `/l/${this.token()}` } });
+  }
+
+  protected showAnyway() {
+    this.#guestOk.add(this.token());
+    // The card with the focused button is gone; continue at the wishes.
+    setTimeout(() => this.wishesTitle()?.nativeElement.focus());
+  }
   /**
    * Bumped after every gift action. Unlike `reload()`, which does nothing while a request is in flight,
    * a new request replaces the running one, so a stale answer (e.g. from signing in) never wins.
@@ -183,7 +253,7 @@ export class ListView {
   readonly #version = signal(0);
   /** Never requested for recipients: they must not learn anything about gifts (§6). */
   protected readonly availability = httpResource<Availability>(() => {
-    if (!this.list.hasValue() || this.list.value().viewerRole === 'Recipient') return undefined;
+    if (!this.list.hasValue() || this.list.value().viewerRole === 'Recipient' || this.gate()) return undefined;
     this.auth.user(); // re-fetch when the signed-in user changes, e.g. right after identifying
     this.#version();
     return { url: `/api/shared/${this.token()}/availability` };

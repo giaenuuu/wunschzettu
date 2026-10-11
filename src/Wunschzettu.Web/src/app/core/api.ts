@@ -36,3 +36,10 @@ export type LinkKind = Schemas['LinkKind'];
 export type LinkPreview = Schemas['LinkPreviewDto'];
 export type ScrapeResult = Schemas['ScrapeResultDto'];
 export type ListAccess = Schemas['ListAccess'];
+
+/** GET /api/legal: the operator from App:Operator, shown in Impressum and Datenschutz. */
+export interface LegalInfo {
+  operatorName: string | null;
+  operatorEmail: string | null;
+  operatorAddress: string | null;
+}

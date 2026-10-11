@@ -108,6 +108,11 @@ try {
   // A guest opens the link without an account, reserves one wish and starts a group gift.
   const anna = await page('anna');
   await anna.goto(`${base}/l/${token}`);
+  // Signed out, nobody sees what's taken before saying they want to give something.
+  await anna.getByRole('heading', { name: 'Möchtest du etwas schenken?' }).waitFor();
+  assert((await anna.locator('app-gift-status').count()) === 0, 'no gift state before choosing to give');
+  await shot(anna, '03a-guest-gate');
+  await anna.getByRole('button', { name: 'Ich möchte etwas schenken' }).click();
   const laufrad = anna.locator('app-wish-card', { hasText: 'Laufrad' });
   await laufrad.getByRole('button', { name: 'Ich schenke das' }).click();
   await anna.getByLabel('Dein Name').fill('Anna');
@@ -125,6 +130,7 @@ try {
   // A second guest (English, dark) sees it taken and joins the group.
   const ben = await page('ben', { locale: 'en-US', colorScheme: 'dark' });
   await ben.goto(`${base}/l/${token}`);
+  await ben.getByRole('button', { name: "I'd like to give something" }).click();
   await ben.locator('app-wish-card', { hasText: 'Laufrad' }).getByText('Already taken').waitFor();
   await ben.locator('app-wish-card', { hasText: 'Kindervelo' }).getByRole('button', { name: 'Join' }).click();
   await ben.getByLabel('Your name').fill('Ben');
@@ -158,6 +164,22 @@ try {
   assert(!(await lena.content()).includes('Anna'), 'recipient sees no giver names');
   await shot(lena, '05-recipient');
   step('recipient sees no gift state');
+
+  // Signed out on the same device, her list asks her to sign in instead of showing what's taken.
+  await lena.context().clearCookies();
+  await lena.goto(`${base}/l/${token}`);
+  await lena.getByRole('heading', { name: 'Das ist deine Wunschliste' }).waitFor();
+  await lena.getByRole('heading', { name: 'Kindervelo' }).waitFor();
+  assert((await lena.locator('app-gift-status').count()) === 0, 'signed-out recipient sees no gift status');
+  await shot(lena, '05a-recipient-signed-out');
+  step('signed-out recipient is asked to sign in');
+
+  // Legal pages and unknown addresses.
+  await lena.goto(`${base}/datenschutz`);
+  await lena.getByRole('heading', { name: 'Datenschutzerklärung' }).waitFor();
+  await lena.goto(`${base}/gibt-es-nicht`);
+  await lena.getByText('Diese Seite gibt es nicht').waitFor();
+  step('legal pages and 404');
 
   // The manager sets a password and signs in with it instead of a code.
   await owner.goto(`${base}/profile`);

@@ -1,6 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http.HttpResults;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Wunschzettu.Api.Data;
 using Wunschzettu.Api.Infrastructure;
 
@@ -37,6 +41,10 @@ public record PasswordLoginRequest(
 public record SetPasswordRequest([property: Required, StringLength(128, MinimumLength = 8)] string Password);
 
 public record ConfirmRequest([property: Required, StringLength(100)] string Token);
+
+public record DeleteAccountRequest([property: Required, RegularExpression(@"^\s*\d{6}\s*$")] string Code);
+
+public record LegalDto(string? OperatorName, string? OperatorEmail, string? OperatorAddress);
 
 public record UpdateMeRequest(
     [property: Required, StringLength(100, MinimumLength = 1)] string DisplayName,
@@ -95,6 +103,51 @@ public static class AuthEndpoints
             return TypedResults.NoContent();
         }).RequireAuthorization(Policies.ConfirmedUser);
 
+        // "Lost my phone": ends every other session, this one is renewed.
+        group.MapPost("/logout-everywhere", async Task<Results<NoContent, UnauthorizedHttpResult>> (HttpContext ctx,
+            UserManager<AppUser> users, AuthService auth) =>
+        {
+            var user = await users.GetUserAsync(ctx.User);
+            if (user is null) return TypedResults.Unauthorized();
+            await users.UpdateSecurityStampAsync(user);
+            await auth.SignInAsync(user, ctx.User.DeviceId());
+            return TypedResults.NoContent();
+        }).RequireAuthorization(Policies.ConfirmedUser);
+
+        // Right of access / portability (§5.10): everything about me as one JSON file.
+        group.MapGet("/me/export", async Task<Results<FileContentHttpResult, UnauthorizedHttpResult>> (HttpContext ctx,
+            UserManager<AppUser> users, AccountService account, CancellationToken ct) =>
+        {
+            var user = await users.GetUserAsync(ctx.User);
+            if (user is null) return TypedResults.Unauthorized();
+            var data = await account.ExportAsync(user, ct);
+            var json = JsonSerializer.SerializeToUtf8Bytes(data, ExportJson);
+            return TypedResults.File(json, "application/json", "wunschzettu-export.json");
+        }).RequireAuthorization(Policies.ConfirmedUser);
+
+        limited.MapPost("/me/deletion-code", async Task<Results<NoContent, UnauthorizedHttpResult, ProblemHttpResult>> (HttpContext ctx,
+            UserManager<AppUser> users, AuthService auth) =>
+        {
+            var user = await users.GetUserAsync(ctx.User);
+            if (user is null) return TypedResults.Unauthorized();
+            return await auth.SendDeletionCodeAsync(user)
+                ? TypedResults.NoContent()
+                : TypedResults.Problem("Too many mails to this address. Try again later.", statusCode: 429, type: "rate-limited");
+        }).RequireAuthorization(Policies.ConfirmedUser);
+
+        // Right to erasure (§5.10). A fresh code proves it's really the owner, not someone with a stolen session.
+        limited.MapDelete("/me", async Task<Results<NoContent, UnauthorizedHttpResult, ProblemHttpResult>> ([FromBody] DeleteAccountRequest req,
+            HttpContext ctx, UserManager<AppUser> users, AuthService auth, AccountService account, CancellationToken ct) =>
+        {
+            var user = await users.GetUserAsync(ctx.User);
+            if (user is null) return TypedResults.Unauthorized();
+            if (await auth.VerifyCodeAsync(user.Email!, req.Code, forDeletion: true) is not { } verified || verified.Id != user.Id)
+                return TypedResults.Problem("The code is wrong or expired.", statusCode: StatusCodes.Status400BadRequest, type: "invalid-code");
+            await account.DeleteAsync(user, ct);
+            await auth.SignOutAsync();
+            return TypedResults.NoContent();
+        }).RequireAuthorization(Policies.ConfirmedUser);
+
         group.MapPost("/logout", async (AuthService auth) =>
         {
             await auth.SignOutAsync();
@@ -129,7 +182,7 @@ public static class AuthEndpoints
         // One answer for every failure (unknown email, no password, wrong, locked out), so it reveals nothing about accounts.
         limited.MapPost("/login-password", async Task<Results<Ok<MeDto>, ProblemHttpResult>> (PasswordLoginRequest req, HttpContext ctx, AuthService auth) =>
         {
-            var user = await auth.CheckPasswordAsync(req.Email, req.Password);
+            var user = await auth.CheckPasswordAsync(req.Email, req.Password, ctx.Connection.RemoteIpAddress?.ToString());
             if (user is null)
                 return TypedResults.Problem("Email or password is wrong.", statusCode: StatusCodes.Status400BadRequest, type: "invalid-login");
             if (ctx.User.Identity?.IsAuthenticated == true) await auth.SignOutAsync();
@@ -158,6 +211,22 @@ public static class AuthEndpoints
             return TypedResults.Ok(MeDto.From(user));
         });
     }
+
+    static readonly JsonSerializerOptions ExportJson = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
+    /// Who runs this instance, for the imprint and privacy policy pages.
+    public static void MapLegalEndpoint(this IEndpointRouteBuilder app) =>
+        app.MapGet("/api/legal", (IOptions<AppOptions> options) =>
+        {
+            var o = options.Value.Operator;
+            return TypedResults.Ok(new LegalDto(Blank(o.Name), Blank(o.Email), Blank(o.Address)?.Replace(", ", "\n")));
+        }).WithTags("Legal");
+
+    static string? Blank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     /// Only local paths, so a crafted link can't send people elsewhere after signing in.
     public static string SafeReturnUrl(string? url) =>

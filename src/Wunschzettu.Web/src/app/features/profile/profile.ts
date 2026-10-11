@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { form, FormField, FormRoot, maxLength, minLength, required, validate } from '@angular/forms/signals';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { form, FormField, FormRoot, maxLength, minLength, pattern, required, validate } from '@angular/forms/signals';
+import { Router, RouterLink } from '@angular/router';
 import { Auth } from '../../core/auth';
 import { chosenLanguage, Language, switchLanguage } from '../../core/language';
-import { problemMessage } from '../../core/problems';
+import { problemMessage, problemType } from '../../core/problems';
 import { UiButton } from '../../ui/button';
 import { Confirmer } from '../../ui/confirm';
 import { UiControl, UiField } from '../../ui/field';
@@ -53,8 +53,9 @@ import { Toaster } from '../../ui/toaster';
         </form>
       </section>
 
-      <section class="card p-5 sm:p-6" aria-labelledby="profile-password">
-        <h2 id="profile-password" class="section-title mb-2 flex items-center gap-2"><ui-icon name="key" /><span i18n="@@profile.passwordTitle">Passwort</span></h2>
+      <section class="card mb-6 p-5 sm:p-6" aria-labelledby="profile-security">
+        <h2 id="profile-security" class="section-title mb-5 flex items-center gap-2"><ui-icon name="shield_lock" /><span i18n="@@profile.securityTitle">Sicherheit</span></h2>
+        <h3 class="mb-1 flex items-center gap-2 font-bold"><ui-icon name="key" [size]="20" /><span i18n="@@profile.passwordTitle">Passwort</span></h3>
         @if (auth.user()?.hasPassword) {
           <p class="mb-5 text-ink-muted" i18n="@@profile.passwordSet">Du kannst dich mit Passwort oder mit einem Code per Mail anmelden.</p>
         } @else {
@@ -78,6 +79,53 @@ import { Toaster } from '../../ui/toaster';
             }
           </div>
         </form>
+
+        <h3 class="mt-8 mb-1 flex items-center gap-2 border-t border-line pt-6 font-bold"><ui-icon name="devices" [size]="20" /><span i18n="@@profile.devicesTitle">Geräte</span></h3>
+        <p class="mb-4 text-ink-muted" i18n="@@profile.devicesText">Handy verloren oder irgendwo angemeldet geblieben? Damit meldest du alle anderen Geräte ab. Dieses Gerät bleibt angemeldet.</p>
+        <button uiButton variant="secondary" type="button" [busy]="loggingOut()" [disabled]="!auth.confirmed()" (click)="logoutEverywhere()">
+          <ui-icon name="logout" /><span i18n="@@profile.logoutEverywhere">Andere Geräte abmelden</span>
+        </button>
+      </section>
+
+      <section class="card mb-6 p-5 sm:p-6" aria-labelledby="profile-data">
+        <h2 id="profile-data" class="section-title mb-2 flex items-center gap-2"><ui-icon name="download" /><span i18n="@@profile.dataTitle">Deine Daten</span></h2>
+        <p class="mb-4 text-ink-muted" i18n="@@profile.dataText">Alles, was Wunschzettu über dich gespeichert hat – Konto, Listen, Wünsche und Geschenke – als Datei zum Herunterladen.</p>
+        @if (auth.confirmed()) {
+          <a uiButton variant="secondary" href="/api/auth/me/export" download><ui-icon name="download" /><span i18n="@@profile.export">Daten herunterladen</span></a>
+        } @else {
+          <button uiButton variant="secondary" type="button" [disabled]="true"><ui-icon name="download" /><span i18n="@@profile.export">Daten herunterladen</span></button>
+        }
+        <p class="mt-4 text-sm text-ink-muted">
+          <a routerLink="/datenschutz" class="underline underline-offset-2 hover:text-accent" i18n="@@profile.privacyLink">Wie wir mit deinen Daten umgehen</a>
+        </p>
+      </section>
+
+      <section class="card border-danger/40! p-5 sm:p-6" aria-labelledby="profile-delete">
+        <h2 id="profile-delete" class="section-title mb-2 flex items-center gap-2 text-danger"><ui-icon name="delete_forever" /><span i18n="@@profile.deleteTitle">Konto löschen</span></h2>
+        <p class="text-ink-muted" i18n="@@profile.deleteIntro">Das kann nicht rückgängig gemacht werden:</p>
+        <ul class="mt-2 mb-5 list-disc space-y-1 pl-5 text-sm text-ink-muted">
+          <li i18n="@@profile.deleteLists">Listen, die nur du verwaltest, werden endgültig gelöscht – mit allen Wünschen, Bildern und den Geschenken, die andere darauf gewählt haben. Ist eine Liste für jemanden mit eigenem Konto, übernimmt diese Person sie stattdessen.</li>
+          <li i18n="@@profile.deleteGifts">Deine Geschenke und Beteiligungen enden. Wer mit dir gemeinsam schenkt, wird benachrichtigt.</li>
+          <li i18n="@@profile.deleteMemberships">Bei Listen, die andere mitverwalten, wirst du entfernt; die Listen bleiben.</li>
+        </ul>
+        @if (deleteStep() === 'code') {
+          <form [formRoot]="deleteForm" class="flex flex-col gap-4">
+            <p class="notice notice-warn" role="status" i18n="@@profile.deleteCodeSent">Wir haben dir einen Code geschickt. Gib ihn ein, um das Löschen zu bestätigen.</p>
+            <ui-field i18n-label="@@login.code" label="Code">
+              <input #deleteCode uiControl class="control-code" autocomplete="one-time-code" inputmode="numeric" [formField]="deleteForm.code" />
+            </ui-field>
+            @if (deleteError()) {
+              <p class="rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger" role="alert">{{ deleteError() }}</p>
+            }
+            <div class="flex flex-wrap gap-2">
+              <button uiButton variant="danger" type="submit" [busy]="deleteForm().submitting()" i18n="@@profile.deleteForever">Konto endgültig löschen</button>
+              <button uiButton variant="ghost" type="button" (click)="startDelete(false)" i18n="@@profile.deleteResend">Neuen Code senden</button>
+              <button uiButton variant="ghost" type="button" (click)="deleteStep.set('idle')" i18n="@@common.cancel">Abbrechen</button>
+            </div>
+          </form>
+        } @else {
+          <button uiButton variant="danger" type="button" [busy]="requesting()" [disabled]="!auth.confirmed()" (click)="startDelete()" i18n="@@profile.deleteStart">Konto löschen …</button>
+        }
       </section>
     </div>
   `,
@@ -86,6 +134,11 @@ export class Profile {
   protected readonly auth = inject(Auth);
   readonly #toaster = inject(Toaster);
   readonly #confirm = inject(Confirmer);
+  readonly #router = inject(Router);
+  protected readonly loggingOut = signal(false);
+  protected readonly requesting = signal(false);
+  protected readonly deleteStep = signal<'idle' | 'code'>('idle');
+  private readonly deleteCode = viewChild<ElementRef<HTMLInputElement>>('deleteCode');
 
   protected readonly passwordLabel = $localize`:@@profile.password:Passwort`;
   protected readonly newPasswordLabel = $localize`:@@profile.newPassword:Neues Passwort`;
@@ -109,7 +162,12 @@ export class Profile {
             if (language !== chosenLanguage()) switchLanguage(language);
             else this.#toaster.show($localize`:@@common.saved:Gespeichert`, { tone: 'success' });
           } catch (e) {
-            this.#toaster.show(problemMessage(e), { tone: 'error' });
+            // Inline, where the code is typed: a toast would cover the field on phones.
+            this.deleteError.set(
+              problemType(e) === 'invalid-code'
+                ? $localize`:@@profile.deleteWrongCode:Der Code stimmt nicht oder ist abgelaufen. Fordere einen neuen an.`
+                : problemMessage(e),
+            );
           }
         },
       },
@@ -144,6 +202,65 @@ export class Profile {
       },
     },
   );
+
+  readonly #deleteModel = signal({ code: '' });
+  protected readonly deleteError = signal<string | null>(null);
+  protected readonly deleteForm = form(
+    this.#deleteModel,
+    (p) => {
+      required(p.code);
+      pattern(p.code, /^\s*\d{6}\s*$/);
+    },
+    {
+      submission: {
+        action: async (f) => {
+          this.deleteError.set(null);
+          try {
+            await this.auth.deleteAccount(f().value().code.trim());
+            await this.#router.navigateByUrl('/');
+            this.#toaster.show($localize`:@@profile.deleted:Dein Konto ist gelöscht. Danke, dass du Wunschzettu genutzt hast.`, { tone: 'success', duration: 8000 });
+          } catch (e) {
+            this.#toaster.show(problemMessage(e), { tone: 'error' });
+          }
+        },
+      },
+    },
+  );
+
+  protected async startDelete(ask = true) {
+    const ok = !ask || await this.#confirm.ask({
+      title: $localize`:@@profile.deleteConfirmTitle:Konto wirklich löschen?`,
+      message: $localize`:@@profile.deleteConfirmMessage:Zur Sicherheit schicken wir dir einen Code per Mail. Erst mit diesem Code wird das Konto gelöscht.`,
+      confirm: $localize`:@@profile.deleteSendCode:Code senden`,
+      danger: true,
+    });
+    if (!ok) return;
+    this.requesting.set(true);
+    this.deleteError.set(null);
+    try {
+      await this.auth.requestDeletionCode();
+      this.#deleteModel.set({ code: '' });
+      this.deleteForm().reset();
+      this.deleteStep.set('code');
+      setTimeout(() => this.deleteCode()?.nativeElement.focus());
+    } catch (e) {
+      this.#toaster.show(problemMessage(e), { tone: 'error' });
+    } finally {
+      this.requesting.set(false);
+    }
+  }
+
+  protected async logoutEverywhere() {
+    this.loggingOut.set(true);
+    try {
+      await this.auth.logoutEverywhere();
+      this.#toaster.show($localize`:@@profile.loggedOutEverywhere:Alle anderen Geräte werden in den nächsten Minuten abgemeldet.`, { tone: 'success' });
+    } catch (e) {
+      this.#toaster.show(problemMessage(e), { tone: 'error' });
+    } finally {
+      this.loggingOut.set(false);
+    }
+  }
 
   protected async removePassword() {
     const ok = await this.#confirm.ask({

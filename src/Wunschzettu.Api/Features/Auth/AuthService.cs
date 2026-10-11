@@ -10,7 +10,7 @@ namespace Wunschzettu.Api.Features.Auth;
 
 /// Email-only identity (§5): users, one-time codes and links, confirmation, sign-in.
 public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInManager<AppUser> signIn, Mailer mailer, TimeProvider clock,
-    IOptions<AppOptions> options)
+    IOptions<AppOptions> options, LoginThrottle throttle)
 {
     public static readonly TimeSpan LoginCodeValidity = TimeSpan.FromMinutes(15);
     public static readonly TimeSpan InviteValidity = TimeSpan.FromDays(7);
@@ -99,29 +99,39 @@ public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInMana
         await db.SaveChangesAsync();
     }
 
-    /// Checks a typed-in code. Wrong codes count towards Identity's lockout (5 attempts).
-    public async Task<AppUser?> VerifyCodeAsync(string email, string code)
+    /// Checks a typed-in code. No account lockout (anyone could trigger it): each code survives 5 wrong guesses
+    /// and only 12 codes a day are sent, so guessing stays hopeless. The link in the mail always works.
+    public async Task<AppUser?> VerifyCodeAsync(string email, string code, bool forDeletion = false)
     {
         var user = await users.FindByEmailAsync(email.Trim());
-        if (user is null || await users.IsLockedOutAsync(user)) return null;
+        if (user is null) return null;
 
         var now = Now;
         var hash = HashCode(user, code.Trim());
         var match = await db.LoginCodes.FirstOrDefaultAsync(c =>
-            c.UserId == user.Id && c.CodeHash == hash && c.UsedAt == null && c.ExpiresAt > now && c.FailedAttempts < MaxCodeFailures);
+            c.UserId == user.Id && c.CodeHash == hash && c.UsedAt == null && c.ExpiresAt > now && c.FailedAttempts < MaxCodeFailures
+            && (c.Purpose == LoginCodePurpose.DeleteAccount) == forDeletion);
         if (match is null)
         {
             // Every wrong guess counts against all live codes, so each code can be guessed at most 5 times.
             await db.LoginCodes.Where(c => c.UserId == user.Id && c.UsedAt == null && c.ExpiresAt > now)
                 .ExecuteUpdateAsync(s => s.SetProperty(c => c.FailedAttempts, c => c.FailedAttempts + 1));
-            await users.AccessFailedAsync(user);
             return null;
         }
 
         match.UsedAt = now;
         await db.SaveChangesAsync();
-        await users.ResetAccessFailedCountAsync(user);
         return user;
+    }
+
+    /// A code that only deletes the account (§5.10). Its mail has no button: a link must never delete anything.
+    public async Task<bool> SendDeletionCodeAsync(AppUser user)
+    {
+        if (!await MayIssueCodeAsync(user)) return false;
+        var (code, _) = IssueCode(user, LoginCodePurpose.DeleteAccount, Now + LoginCodeValidity);
+        mailer.Enqueue(user, Mails.DeletionCode(user, code, (int)LoginCodeValidity.TotalMinutes));
+        await db.SaveChangesAsync();
+        return true;
     }
 
     public async Task<AppUser?> RedeemTokenAsync(string token)
@@ -129,7 +139,7 @@ public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInMana
         var now = Now;
         var hash = Secrets.Hash(token);
         var match = await db.LoginCodes.Include(c => c.User)
-            .FirstOrDefaultAsync(c => c.TokenHash == hash && c.UsedAt == null && c.ExpiresAt > now);
+            .FirstOrDefaultAsync(c => c.TokenHash == hash && c.UsedAt == null && c.ExpiresAt > now && c.Purpose != LoginCodePurpose.DeleteAccount);
         if (match is null) return null;
 
         match.UsedAt = now;
@@ -155,14 +165,30 @@ public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInMana
     public Task SignInAsync(AppUser user, string? deviceId = null) =>
         signIn.SignInWithClaimsAsync(user, isPersistent: true, [new Claim(ClaimsExtensions.Device, deviceId ?? Secrets.Token())]);
 
-    /// The optional password (§5.9). Wrong passwords count towards the same lockout as wrong codes.
-    public async Task<AppUser?> CheckPasswordAsync(string email, string password)
+    /// The optional password (§5.9), throttled per account and IP (LoginThrottle).
+    /// Unknown accounts take as long as known ones, so the timing doesn't tell which emails have a password.
+    public async Task<AppUser?> CheckPasswordAsync(string email, string password, string? ip)
     {
+        if (throttle.IsBlocked(email, ip)) return null;
         var user = await users.FindByEmailAsync(email.Trim());
-        if (user is null || !user.EmailConfirmed || user.PasswordHash is null) return null;
-        var result = await signIn.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
-        return result.Succeeded ? user : null;
+        bool valid;
+        if (user is { EmailConfirmed: true, PasswordHash: not null })
+            valid = await users.CheckPasswordAsync(user, password);
+        else
+        {
+            users.PasswordHasher.VerifyHashedPassword(new AppUser(), DummyHash.Value, password);
+            valid = false;
+        }
+        if (!valid)
+        {
+            throttle.Failed(email, ip);
+            return null;
+        }
+        throttle.Succeeded(email, ip);
+        return user;
     }
+
+    static readonly Lazy<string> DummyHash = new(() => new PasswordHasher<AppUser>().HashPassword(new AppUser(), Secrets.Token()));
 
     /// Sets or replaces the password; validated first, so a rejected password leaves the old one in place.
     public async Task<IdentityResult> SetPasswordAsync(AppUser user, string password)

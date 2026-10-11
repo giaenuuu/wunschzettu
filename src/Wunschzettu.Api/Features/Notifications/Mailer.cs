@@ -32,8 +32,8 @@ public class Mailer(AppDbContext db, TimeProvider clock, IOptions<AppOptions> op
             ToUserId = to.Id,
             Type = mail.Type,
             Subject = mail.Subject,
-            HtmlBody = RenderHtml(mail),
-            TextBody = RenderText(mail),
+            HtmlBody = RenderHtml(mail, Url("/datenschutz")),
+            TextBody = RenderText(mail, Url("/datenschutz")),
             CreatedAt = now,
             NextAttemptAt = now,
         });
@@ -41,18 +41,20 @@ public class Mailer(AppDbContext db, TimeProvider clock, IOptions<AppOptions> op
 
     static string E(string s) => WebUtility.HtmlEncode(s);
 
-    static string RenderText(MailContent m)
+    static string RenderText(MailContent m, string privacyUrl)
     {
         var sb = new StringBuilder();
         sb.AppendLine(m.Heading).AppendLine();
         foreach (var p in m.Paragraphs) sb.AppendLine(p).AppendLine();
         if (m.Code is not null) sb.AppendLine(m.Code).AppendLine();
         if (m.Button is not null) sb.AppendLine($"{m.Button.Label}: {m.Button.Url}").AppendLine();
-        if (m.Footer is not null) sb.AppendLine("--").AppendLine(m.Footer);
+        sb.AppendLine("--");
+        if (m.Footer is not null) sb.AppendLine(m.Footer);
+        sb.AppendLine($"Wunschzettu · {privacyUrl}");
         return sb.ToString();
     }
 
-    static string RenderHtml(MailContent m)
+    static string RenderHtml(MailContent m, string privacyUrl)
     {
         var paragraphs = string.Concat(m.Paragraphs.Select(p =>
             $"""<p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:#1d1b20">{E(p)}</p>"""));
@@ -80,6 +82,7 @@ public class Mailer(AppDbContext db, TimeProvider clock, IOptions<AppOptions> op
                     {paragraphs}{code}{button}{footer}
                   </td></tr>
                 </table>
+                <p style="margin:16px 0 0;font-size:12px;color:#6b6876"><a href="{E(privacyUrl)}" style="color:#6b6876">Datenschutz · Privacy</a></p>
               </td></tr></table>
             </body></html>
             """;

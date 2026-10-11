@@ -1,17 +1,21 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Wunschzettu.Api.Data;
 using Wunschzettu.Api.Features.Auth;
 using Wunschzettu.Api.Features.Gifts;
 using Wunschzettu.Api.Features.Images;
 using Wunschzettu.Api.Features.Notifications;
+using Wunschzettu.Api.Infrastructure;
 
 namespace Wunschzettu.Api.Features.Jobs;
 
 /// Time-based rules. Every step is idempotent, so running too often is harmless and a missed run catches up.
 public class Jobs(AppDbContext db, GiftService gifts, AuthService auth, Mailer mailer, ImageStore images, TimeProvider clock,
-    ILogger<Jobs> logger)
+    IOptions<AppOptions> options, ILogger<Jobs> logger)
 {
     static readonly TimeSpan DeletedListRetention = TimeSpan.FromDays(30);
+    static readonly TimeSpan MailRetention = TimeSpan.FromDays(30);
+    static readonly TimeSpan UnconfirmedAccountRetention = TimeSpan.FromDays(30);
 
     DateTime Now => clock.GetUtcNow().UtcDateTime;
     DateOnly Today => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
@@ -23,6 +27,7 @@ public class Jobs(AppDbContext db, GiftService gifts, AuthService auth, Mailer m
         await RemindUpcomingEventsAsync(ct);
         await ProcessPastEventsAsync(ct);
         await CleanUpAsync(ct);
+        await BackupAsync(ct);
     }
 
     /// Two reminders, at 2/7 and 5/7 of the confirmation window: day 2 and 5 normally, earlier if the event is close (§5.3).
@@ -159,15 +164,7 @@ public class Jobs(AppDbContext db, GiftService gifts, AuthService auth, Mailer m
         var cutoff = now - DeletedListRetention;
         var purged = await db.Wishlists.Where(l => l.DeletedAt != null && l.DeletedAt < cutoff).ToListAsync(ct);
         foreach (var list in purged)
-        {
-            var keys = await db.WishImages.Where(i => db.Wishes.Any(w => w.Id == i.WishId && w.WishlistId == list.Id))
-                .Select(i => i.FileKey).ToListAsync(ct);
-            keys.AddRange(await db.Wishes.Where(w => w.WishlistId == list.Id).SelectMany(w => w.Links)
-                .Where(l => l.PreviewImageKey != null).Select(l => l.PreviewImageKey!).ToListAsync(ct));
-            db.Wishlists.Remove(list);
-            await db.SaveChangesAsync(ct);
-            foreach (var key in keys) images.Delete(key);
-        }
+            await PurgeAsync(list, ct);
 
         // A removed wish nobody gives any more has no reason to exist.
         var orphans = await db.Wishes.Where(w => w.State == WishState.Removed && !w.Gifts.Any()).Include(w => w.Images).Include(w => w.Links).AsSplitQuery().ToListAsync(ct);
@@ -177,7 +174,43 @@ public class Jobs(AppDbContext db, GiftService gifts, AuthService auth, Mailer m
         foreach (var key in orphans.SelectMany(w => w.Links).Select(l => l.PreviewImageKey).OfType<string>()) images.Delete(key);
 
         await db.LoginCodes.Where(c => c.ExpiresAt < now.AddDays(-1)).ExecuteDeleteAsync(ct);
-        await db.Outbox.Where(m => m.SentAt != null && m.SentAt < now.AddDays(-30)).ExecuteDeleteAsync(ct);
+        // Copies of mails hold codes and names; sent or given up, they go after 30 days.
+        var mailCutoff = now - MailRetention;
+        await db.Outbox.Where(m => (m.SentAt != null && m.SentAt < mailCutoff) || (m.SentAt == null && m.CreatedAt < mailCutoff))
+            .ExecuteDeleteAsync(ct);
+
+        // Anyone can type an email: accounts never confirmed that hold nothing are dropped after 30 days.
+        var userCutoff = now - UnconfirmedAccountRetention;
+        await db.Users.Where(u => !u.EmailConfirmed && u.CreatedAt < userCutoff
+                && !db.ListMembers.Any(m => m.UserId == u.Id) && !db.GiftParticipants.Any(p => p.UserId == u.Id)
+                && !db.LoginCodes.Any(c => c.UserId == u.Id && c.CreatedAt > userCutoff)) // someone still trying to sign in
+            .ExecuteDeleteAsync(ct);
+    }
+
+    /// Deletes a list for good, with its pictures on disk.
+    public async Task PurgeAsync(Wishlist list, CancellationToken ct)
+    {
+        var keys = await db.WishImages.Where(i => db.Wishes.Any(w => w.Id == i.WishId && w.WishlistId == list.Id))
+            .Select(i => i.FileKey).ToListAsync(ct);
+        keys.AddRange(await db.Wishes.Where(w => w.WishlistId == list.Id).SelectMany(w => w.Links)
+            .Where(l => l.PreviewImageKey != null).Select(l => l.PreviewImageKey!).ToListAsync(ct));
+        db.Wishlists.Remove(list);
+        await db.SaveChangesAsync(ct);
+        foreach (var key in keys) images.Delete(key);
+    }
+
+    /// A copy of the database per day in {DataDir}/backups, the oldest beyond BackupDays deleted (§11).
+    public async Task BackupAsync(CancellationToken ct)
+    {
+        var days = options.Value.BackupDays;
+        if (days <= 0 || !db.Database.IsSqlite()) return;
+        var dir = Path.Combine(Path.GetFullPath(options.Value.DataDir), "backups");
+        Directory.CreateDirectory(dir);
+        var file = Path.Combine(dir, $"wunschzettu-{Now:yyyy-MM-dd}.db");
+        if (!File.Exists(file))
+            await db.Database.ExecuteSqlRawAsync("VACUUM INTO {0}", [file], ct);
+        foreach (var old in Directory.GetFiles(dir, "wunschzettu-*.db").Order().SkipLast(days))
+            File.Delete(old);
     }
 }
 

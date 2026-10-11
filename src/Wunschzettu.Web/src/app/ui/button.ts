@@ -15,7 +15,7 @@ const variants: Record<ButtonVariant, string> = {
   secondary: 'bg-accent-soft text-on-accent-soft hover:bg-[color-mix(in_oklch,var(--color-accent-soft),var(--color-accent)_14%)]',
   outline: 'border-[1.5px] border-line-strong bg-transparent text-ink hover:border-accent hover:text-accent',
   ghost: 'bg-transparent text-ink hover:bg-sunken',
-  danger: 'bg-danger text-white hover:brightness-110',
+  danger: 'bg-danger text-on-danger hover:brightness-110',
   'danger-ghost': 'bg-transparent text-danger hover:bg-danger-soft',
   // On an accent-coloured surface: opaque, so the text keeps its contrast in dark mode too.
   'on-accent': 'bg-raised text-ink shadow-sm hover:bg-paper',

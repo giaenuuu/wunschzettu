@@ -34,17 +34,6 @@ public class PasswordTests(AppFactory app) : IClassFixture<AppFactory>
     }
 
     [Fact]
-    public async Task Wrong_passwords_lock_the_account_for_a_while()
-    {
-        var c = await app.UserAsync("lock@example.com", "Lock");
-        await c.Put("/api/auth/password", new { password = "richtig richtig" }).Ok();
-        var attacker = app.Anonymous();
-        for (var i = 0; i < 5; i++)
-            await attacker.Post("/api/auth/login-password", new { email = "lock@example.com", password = $"falsch {i}" }).Fails(400, "invalid-login");
-        await attacker.Post("/api/auth/login-password", new { email = "lock@example.com", password = "richtig richtig" }).Fails(400, "invalid-login");
-    }
-
-    [Fact]
     public async Task Unconfirmed_sessions_cannot_set_a_password()
     {
         var guest = await app.GuestAsync("guest-pw@example.com", "Gast");

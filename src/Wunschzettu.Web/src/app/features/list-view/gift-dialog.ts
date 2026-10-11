@@ -9,6 +9,7 @@ import { UiButton } from '../../ui/button';
 import { DIALOG_DATA, DialogRef, UiDialog, UiDialogActions } from '../../ui/dialog';
 import { UiControl, UiField } from '../../ui/field';
 import { UiIcon } from '../../ui/icon';
+import { Consent } from '../../shared/consent';
 
 export type GiftMode = 'reserve' | 'group' | 'join' | 'edit';
 
@@ -31,7 +32,7 @@ export type GiftDialogResult = 'done' | 'taken';
 @Component({
   selector: 'app-gift-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormRoot, FormField, UiDialog, UiDialogActions, UiButton, UiControl, UiField, UiIcon],
+  imports: [FormRoot, FormField, UiDialog, UiDialogActions, UiButton, UiControl, UiField, UiIcon, Consent],
   template: `
     <form [formRoot]="form" class="contents">
       <ui-dialog [title]="title()" [subtitle]="data.wish.name">
@@ -72,6 +73,7 @@ export type GiftDialogResult = 'done' | 'taken';
               <ui-field i18n-label="@@gift.yourEmail" label="Deine E-Mail" i18n-hint="@@gift.emailHint" hint="Für die Bestätigung und eine Erinnerung. Kein Konto, kein Passwort.">
                 <input uiControl type="email" autocomplete="email" inputmode="email" [formField]="form.email" />
               </ui-field>
+              <app-consent [newTab]="true" />
             }
 
             @if (showUnits()) {

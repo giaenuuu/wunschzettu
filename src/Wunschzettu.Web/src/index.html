@@ -15,13 +15,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Wunschzettu" />
-    <script>
-      // Apply the saved colour scheme before first paint, so dark mode never flashes white.
-      try {
-        const s = localStorage.getItem('wz.scheme');
-        if (s === 'light' || s === 'dark') document.documentElement.style.colorScheme = s;
-      } catch {}
-    </script>
+    <!-- External, not inline: the Content-Security-Policy allows scripts from this origin only. -->
+    <script src="theme-init.js"></script>
   </head>
   <body>
     <app-root></app-root>

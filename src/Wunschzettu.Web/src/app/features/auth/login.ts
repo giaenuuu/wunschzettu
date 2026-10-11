@@ -7,6 +7,7 @@ import { UiButton } from '../../ui/button';
 import { UiControl, UiField } from '../../ui/field';
 import { UiIcon } from '../../ui/icon';
 import { SegmentOption, UiSegmented } from '../../ui/segmented';
+import { Consent } from '../../shared/consent';
 import { AuthCard } from './auth-card';
 import { safeReturnUrl } from './return-url';
 
@@ -16,7 +17,7 @@ type Method = 'code' | 'password';
 @Component({
   selector: 'app-login',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormRoot, FormField, UiButton, UiControl, UiField, UiIcon, UiSegmented, AuthCard],
+  imports: [FormRoot, FormField, UiButton, UiControl, UiField, UiIcon, UiSegmented, AuthCard, Consent],
   template: `
     <app-auth-card [emoji]="step() === 'code' ? '📬' : '👋'">
       @if (step() === 'start') {
@@ -34,6 +35,7 @@ type Method = 'code' | 'password';
               <span i18n="@@login.sendCode">Code senden</span><ui-icon name="arrow_forward" />
             </button>
             <p class="text-center text-sm text-ink-muted" i18n="@@login.codeExplain">Wir schicken dir einen 6-stelligen Code. Kein Passwort nötig.</p>
+            <app-consent class="text-center" />
           </form>
         } @else {
           <form [formRoot]="passwordForm" class="flex flex-col gap-4 text-left">

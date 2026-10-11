@@ -36,4 +36,4 @@ Without the devcontainer you need the .NET 10 SDK and Node 24+, then `dotnet too
 docker compose up -d --build
 ```
 
-Set `App__BaseUrl` and the `Smtp__*` variables in `compose.yaml`. Everything lives in `./data` (database, images, keys), so that's the folder to back up. The app listens on port 8080 behind your reverse proxy; see ARCHITECTURE.md §11.
+Set `App__BaseUrl`, the `Smtp__*` variables and `App__Operator__*` (imprint and privacy policy) in `compose.yaml`. Everything lives in `./data` (database, daily backups, images, keys), so that's the folder to copy off-site. The app listens on `127.0.0.1:8080` behind your reverse proxy. Before going live, work through the checklist in ARCHITECTURE.md §11.

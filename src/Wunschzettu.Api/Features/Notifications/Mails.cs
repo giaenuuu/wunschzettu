@@ -49,6 +49,16 @@ public static class Mails
         ],
         Button: new(T(u, "Zum Profil", "Open your profile"), profileUrl));
 
+    public static MailContent DeletionCode(AppUser u, string code, int minutes) => new(
+        "DeletionCode",
+        T(u, $"Code zum Löschen deines Kontos: {code}", $"Code to delete your account: {code}"),
+        T(u, "Konto löschen", "Delete your account"),
+        [T(u, $"Gib diesen Code im Profil ein, um dein Wunschzettu-Konto endgültig zu löschen. Er ist {minutes} Minuten gültig.",
+            $"Enter this code in your profile to delete your Wunschzettu account for good. It is valid for {minutes} minutes.")],
+        code,
+        Footer: T(u, "Du willst dein Konto gar nicht löschen? Dann ignoriere diese Mail – es passiert nichts.",
+            "Don't want to delete your account? Then ignore this mail – nothing happens."));
+
     public record Confirmation(string Code, string Link, DateTime ExpiresAt);
 
     public static MailContent GiftChosen(AppUser u, string wish, string list, bool isGroup, string listUrl, Confirmation? confirm)

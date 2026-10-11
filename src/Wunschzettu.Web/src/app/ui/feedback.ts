@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, booleanAttribute, computed, input } from '@angular/core';
 
 /** A determinate progress bar, e.g. how much of a group gift is pledged. */
 @Component({
@@ -49,7 +49,9 @@ export class UiSkeleton {}
   },
   template: `
     <span class="text-5xl leading-none" aria-hidden="true">{{ emoji() }}</span>
-    @if (title()) {
+    @if (title() && pageHeading()) {
+      <h1 class="display text-xl">{{ title() }}</h1>
+    } @else if (title()) {
       <strong class="display text-xl">{{ title() }}</strong>
     }
     <div class="max-w-sm text-ink-muted"><ng-content /></div>
@@ -59,4 +61,6 @@ export class UiSkeleton {}
 export class UiEmpty {
   readonly emoji = input('🎁');
   readonly title = input<string>();
+  /** When the empty state is the whole page (e.g. 404), its title is the page's h1. */
+  readonly pageHeading = input(false, { transform: booleanAttribute });
 }

@@ -20,7 +20,11 @@ public class SmtpOptions
     public string? User { get; set; }
     public string? Password { get; set; }
     public string From { get; set; } = "Wunschzettu <noreply@localhost>";
+    /// Auto: implicit TLS on port 465, otherwise STARTTLS is required. None only for local test servers like Mailpit.
+    public SmtpSecurity Security { get; set; } = SmtpSecurity.Auto;
 }
+
+public enum SmtpSecurity { Auto, StartTls, SslOnConnect, None }
 
 public class SmtpMailSender(IOptions<SmtpOptions> options) : IMailSender
 {
@@ -34,8 +38,14 @@ public class SmtpMailSender(IOptions<SmtpOptions> options) : IMailSender
         message.Body = new BodyBuilder { HtmlBody = mail.HtmlBody, TextBody = mail.TextBody }.ToMessageBody();
 
         using var client = new SmtpClient();
-        // Port 465 is implicit TLS; anything else upgrades with STARTTLS when the server offers it (Mailpit doesn't).
-        var security = o.Port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTlsWhenAvailable;
+        // Never silently plain text: someone on the way could strip STARTTLS and read the password and login codes.
+        var security = o.Security switch
+        {
+            SmtpSecurity.None => SecureSocketOptions.None,
+            SmtpSecurity.SslOnConnect => SecureSocketOptions.SslOnConnect,
+            SmtpSecurity.StartTls => SecureSocketOptions.StartTls,
+            _ => o.Port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls,
+        };
         await client.ConnectAsync(o.Host ?? throw new InvalidOperationException("Smtp:Host is not set."), o.Port, security, ct);
         if (!string.IsNullOrEmpty(o.User))
             await client.AuthenticateAsync(o.User, o.Password ?? "", ct);

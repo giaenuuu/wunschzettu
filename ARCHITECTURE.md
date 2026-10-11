@@ -193,20 +193,29 @@ Guest opens /l/{token}
    - Rate-limit the auth endpoints per IP (built-in `RateLimiter`, 10/min by default).
    - At most 5 codes per email address and hour (12 per day), each code dies after 5 wrong guesses, and 10 unconfirmed participations per user and day. Sign-in and invitation mails are also capped for all addresses together (`App:MaxLoginMailsPerDay`, default 500), so cycling through addresses can't get the SMTP account blocked.
    - Typing an email only signs in without a code for accounts that hold nothing but their own gifts. Anyone invited (manager, recipient, invite-only guest) gets a code instead, even before their first confirmation. Everything that needs a manager or recipient membership requires a confirmed session.
-   - Identity lockout after 5 wrong codes.
+   - **No account lockout**, because a stranger could use it to lock anyone out. Instead: each code dies after 5 wrong guesses and only 12 codes a day are sent (≈60 guesses a day against a million codes); wrong passwords are throttled per account and IP (5 per 15 minutes block that IP only) plus 30 per account from anywhere (only a distributed attack gets there, and codes and links still work). Unknown accounts take as long to check as known ones.
    - Identical responses for known and unknown emails.
 6. **Creating lists requires a confirmed email.** Anyone may create lists (no allowlist), but only after confirming. Upload limits per user apply (§9).
 7. **Sessions are long:** 90 days, sliding. Non-technical users should rarely see a login screen again.
 8. Managers log in the same way: email code or link.
-9. **Optional password.** A confirmed user may set a password in the profile (at least 8 characters, no composition rules) and then log in with email + password as an alternative to the code. Wrong passwords count towards the same lockout as codes, and every failure gets the same `invalid-login` answer. Setting, changing or removing it changes the security stamp: other sessions end within minutes, the current one is renewed. The owner gets a "Passwort geändert" mail every time, so a password set from a stolen session doesn't go unnoticed. Forgotten passwords need no reset flow: log in with a code and set a new one. Passkeys are in §12.
+9. **Optional password.** A confirmed user may set a password in the profile (at least 8 characters, no composition rules) and then log in with email + password as an alternative to the code. Wrong passwords are throttled (rule 5), and every failure gets the same `invalid-login` answer. Setting, changing or removing it changes the security stamp: other sessions end within minutes, the current one is renewed. The owner gets a "Passwort geändert" mail every time, so a password set from a stolen session doesn't go unnoticed. Forgotten passwords need no reset flow: log in with a code and set a new one. Passkeys are in §12.
+10. **Your data, your call** (Swiss nDSG / EU GDPR). The profile offers:
+    - **Export**: everything about me as one JSON file (`GET /api/auth/me/export`): account, lists with my role, the wishes of lists I manage or receive, my gifts.
+    - **"Auf allen anderen Geräten abmelden"**: changes the security stamp and renews the current session.
+    - **Delete account**: needs a fresh code from a dedicated "Konto löschen" mail (purpose `DeleteAccount`, no button: a link never deletes anything; login codes don't count), so a stolen session can't do it. Lists I alone manage are deleted for good, unless they're for someone with an account: then that recipient takes over as manager (still recipient, so still no gifts shown) and the givers' plans survive. On shared lists I just leave. My running gifts end as if I had withdrawn (partners are told, wishes become free; the recipient notices nothing). Past gifts stay on thank-you lists only while another giver is left. Queued mails to me are dropped.
+    - **Retention**: deleted lists 30 days, login codes 1 day after expiry, mail copies 30 days, never-confirmed accounts without content and without a code in the last 30 days are dropped, daily backups 7 days, container logs rotate by size (compose `logging`), which the privacy policy states as at most 14 days.
+11. **Legal pages**: `/impressum`, `/datenschutz`, `/nutzungsbedingungen`, filled with the operator from `App:Operator` (`GET /api/legal`). Signing in or giving shows "Mit dem Fortfahren akzeptierst du …". Only the session cookie is set (strictly necessary) and preferences sit in localStorage, so no cookie banner. The texts are templates, not legal advice.
 
 ### Cookies and CSRF
-- Cookie: `HttpOnly`, `Secure`, `SameSite=Lax`. The SPA is same-origin, so no CORS and no JWT.
+- Cookie: `HttpOnly`, `Secure`, `SameSite=Lax`. In production it is always `Secure`, even if the proxy forgets `X-Forwarded-Proto`; only Development allows plain HTTP. The SPA is same-origin, so no CORS and no JWT.
 - CSRF: `SameSite` plus a required custom header (`X-Requested-With`) on mutating requests, enforced by middleware.
 - The session carries a claim `email_confirmed`. Policies use it.
 
-### Accepted limitation
-A recipient who opens their own share link in a private window with another email can snoop. This protects against **accidental** spoilers, not determined ones. Accepting that keeps everything else simple.
+### Recipients on their own share link
+- Signed in, the server answers recipients without any gift state (§6).
+- Signed out, the browser remembers which share links belong to lists I receive (`wz.myLists`, saved whenever I view one as recipient). Opening one of them signed out shows "Das ist deine Wunschliste – anmelden" instead of what's taken.
+- Everyone the server sees as a guest (signed out, or signed in but not a member, e.g. Lena on a list her mother made "für Lena" without inviting her) first chooses once per list: "Ich möchte etwas schenken" (shows availability, remembered in `wz.guestOk`) or "Das ist meine Liste" (remembered in `wz.myLists`; signed out it leads to the login, signed in it explains "Du bist nicht als beschenkte Person eingetragen – bitte lass dich einladen"). So a recipient on a new phone, in a messenger's in-app browser or with an account from giving elsewhere doesn't see spoilers by accident.
+- **Accepted limitation:** someone who clicks "schenken" on their own list, or uses another email on purpose, can snoop. This protects against **accidental** spoilers, not determined ones.
 
 ---
 
@@ -286,8 +295,13 @@ POST   /api/auth/login-password         { email, password }      alternative to 
 PUT    /api/auth/password               { password }             set or replace (confirmed users)
 DELETE /api/auth/password
 POST   /api/auth/logout
+POST   /api/auth/logout-everywhere      ends all other sessions
 GET    /api/auth/me                     204 when signed out; hasPassword
 PUT    /api/auth/me                     { displayName, language }
+GET    /api/auth/me/export              JSON file with all my data (§5.10)
+POST   /api/auth/me/deletion-code       mails a code that only deletes the account
+DELETE /api/auth/me                     { code } that code; deletes the account (§5.10)
+GET    /api/legal                       operator name, email, address for the legal pages
 
 GET    /api/wishlists                   my lists + shared with me + my gifts
 POST   /api/wishlists                   (confirmed users only)
@@ -410,6 +424,10 @@ services:
       Smtp__User: "..."
       Smtp__Password: "..."
       Smtp__From: "Wunschzettu <noreply@example.com>"
+      # Smtp__Security: Auto     # 465 → TLS, else STARTTLS required; None only for Mailpit & co.
+      App__Operator__Name: "Vorname Nachname"
+      App__Operator__Email: "kontakt@example.com"
+      App__Operator__Address: "Strasse 1, 3000 Bern, Schweiz"
     user: "1000:1000"           # owner of ./data
     volumes:
       - ./data:/data:z          # sqlite db + images + data-protection keys (z: SELinux hosts)
@@ -421,9 +439,19 @@ services:
 - **TLS** is handled by the reverse proxy; `ASPNETCORE_FORWARDEDHEADERS_ENABLED` makes the app trust its headers. That is why the port must only be reachable by the proxy: Docker-published ports bypass the host firewall, and anyone reaching the app directly could fake `X-Forwarded-For` and dodge the per-IP login limit.
 - **Data Protection keys** are persisted to `/data/keys`, so cookies and magic links survive restarts.
 - **Migrations** run automatically on startup (fine for a single instance). Before applying new ones to an existing database, the app writes a copy (`wunschzettu-before-update-<time>.db` in `/data`); delete old copies once the update is fine.
-- **Backup** means backing up `./data`. Use `sqlite3 .backup` or stop the container briefly for a consistent copy.
+- **Backups**: the app writes a consistent copy of the database to `/data/backups` every day (`VACUUM INTO`) and keeps 7 (`App:BackupDays`, 0 = off). Copy `./data` (database, backups, images, keys) to another machine regularly: the daily copies only protect against mistakes, not against a dead disk.
+- **Security headers**: CSP (`script-src 'self'`, no inline scripts; that's why the theme bootstrap lives in `theme-init.js` and critical-CSS inlining is off), `X-Frame-Options`, `nosniff`, `Referrer-Policy: same-origin`, `X-Robots-Tag: noindex` everywhere except the landing, `/app` and legal pages. Add HSTS at the proxy.
+- **Startup warnings** in production when `App:BaseUrl` still points to localhost, `App:Operator` is missing or no SMTP host is set.
+
+### Go-live checklist
+1. DNS name and TLS at the reverse proxy (plus HSTS there); the proxy forwards `X-Forwarded-For`/`-Proto`.
+2. `App__BaseUrl` = the public address (links in mails).
+3. SMTP with a real sender domain; set SPF, DKIM and DMARC for it, or login mails end up in spam.
+4. `App__Operator__*` filled in; read the imprint, privacy policy and terms once and adapt them if needed (e.g. your mail provider's country, how long your off-site backups live: the policy says at most 30 days).
+5. `./data` owned by the container user, included in the off-site backup.
+6. Smoke test: sign in with a code, create a list, open the share link in a private window, reserve, confirm the mail.
 - **Health**: `/healthz` for the proxy or Uptime Kuma.
-- **Logs**: structured console logs → `docker logs` / Loki.
+- **Logs**: structured console logs → `docker logs` / Loki. Only warnings and errors from ASP.NET itself, no request logs. `compose.yaml` rotates them by size; if you ship them elsewhere, keep them at most 14 days (the privacy policy says so).
 
 ---
 
