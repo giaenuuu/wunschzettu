@@ -50,10 +50,13 @@ export class Auth {
     return this.#set(await firstValueFrom(this.#http.post<Me>('/api/auth/confirm', { token })));
   }
 
-  /** A guest acting on a list: signs in right away, unless the email is already confirmed (then a code is sent). */
-  async identify(email: string, displayName: string, returnUrl: string): Promise<IdentifyResponse> {
+  /**
+   * A guest acting on a list: signs in right away, unless the email is already confirmed (then a code is sent).
+   * `requireConfirmation` always answers with a code first (group gifts need a proven mailbox).
+   */
+  async identify(email: string, displayName: string, returnUrl: string, requireConfirmation = false): Promise<IdentifyResponse> {
     const res = await firstValueFrom(
-      this.#http.post<IdentifyResponse>('/api/auth/identify', { email, displayName, returnUrl, language: chosenLanguage() }),
+      this.#http.post<IdentifyResponse>('/api/auth/identify', { email, displayName, returnUrl, language: chosenLanguage(), requireConfirmation }),
     );
     this.#user.set(res.user ?? null);
     return res;

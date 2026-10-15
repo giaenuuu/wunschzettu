@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Wunschzettu.Api.Data;
 using Wunschzettu.Api.Features.Gifts;
 using Wunschzettu.Api.Features.Wishes;
@@ -152,11 +153,20 @@ public class JobTests : IAsyncLifetime
     {
         var (owner, list) = await ListAsync();
         var wish = await owner.Post($"/api/wishlists/{list.Id}/wishes", new { name = "Velo", groupGiftAllowed = true }).Read<WishDto>();
-        var a = await app.GuestAsync("first@example.com", "First");
+        // Group gifts need confirmed emails now. Rows from before that rule may still be unconfirmed: recreate that state.
+        var a = await app.UserAsync("first@example.com", "First");
         var gift = await a.Post($"/api/shared/{list.ShareToken}/wishes/{wish.Id}/gifts", new { isGroup = true }).Read<GiftRefDto>();
         app.Clock.Advance(TimeSpan.FromMinutes(5));
-        var b = await app.GuestAsync("second@example.com", "Second");
+        var b = await app.UserAsync("second@example.com", "Second");
         await b.Post($"/api/shared/{list.ShareToken}/gifts/{gift.GiftId}/participants", new { }).Ok();
+        await app.WithDb(async db =>
+        {
+            await db.Users.Where(u => u.Email == "first@example.com" || u.Email == "second@example.com")
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.EmailConfirmed, false));
+            var expires = app.Clock.GetUtcNow().UtcDateTime.AddDays(7);
+            await db.GiftParticipants.ExecuteUpdateAsync(s => s.SetProperty(p => p.ExpiresAt, expires));
+            return 0;
+        });
 
         app.Clock.Advance(TimeSpan.FromDays(8));
         await app.RunJobsAsync();

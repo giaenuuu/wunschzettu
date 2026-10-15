@@ -40,7 +40,7 @@ export type GiftDialogResult = 'done' | 'taken';
           @if (step() === 'code') {
             <p class="notice notice-accent">
               <ui-icon name="mark_email_read" />
-              <span i18n="@@gift.codeSent">Diese E-Mail-Adresse ist schon bestätigt. Wir haben dir einen Code geschickt – gib ihn hier ein.</span>
+              <span i18n="@@gift.codeSent">Wir haben dir einen Code per E-Mail geschickt – gib ihn hier ein.</span>
             </p>
             <ui-field i18n-label="@@login.code" label="Code">
               <input #codeInput uiControl class="control-code" autocomplete="one-time-code" inputmode="numeric" [formField]="form.code" />
@@ -60,6 +60,12 @@ export type GiftDialogResult = 'done' | 'taken';
             @if (intro()) {
               <p class="text-ink-muted">{{ intro() }}</p>
             }
+            @if (needsConfirmed && !auth.confirmed()) {
+              <p class="notice notice-accent">
+                <ui-icon name="mark_email_read" />
+                <span i18n="@@gift.groupNeedsConfirm">Damit ihr euch absprechen könnt, bestätigst du deine E-Mail kurz mit einem Code.</span>
+              </p>
+            }
             @if (auth.user(); as user) {
               <p class="flex items-center gap-3 rounded-2xl bg-sunken p-3">
                 <span class="grid size-9 place-items-center rounded-full bg-accent-soft font-bold text-on-accent-soft" aria-hidden="true">{{ (user.displayName || user.email).charAt(0).toUpperCase() }}</span>
@@ -70,7 +76,7 @@ export type GiftDialogResult = 'done' | 'taken';
               <ui-field i18n-label="@@gift.yourName" label="Dein Name" i18n-hint="@@gift.nameHint" hint="Damit die anderen wissen, wer schenkt.">
                 <input uiControl autocomplete="name" [formField]="form.displayName" />
               </ui-field>
-              <ui-field i18n-label="@@gift.yourEmail" label="Deine E-Mail" i18n-hint="@@gift.emailHint" hint="Für die Bestätigung und eine Erinnerung. Kein Konto, kein Passwort.">
+              <ui-field i18n-label="@@gift.yourEmail" label="Deine E-Mail" [hint]="emailHint()">
                 <input uiControl type="email" autocomplete="email" inputmode="email" [formField]="form.email" />
               </ui-field>
               <app-consent [newTab]="true" />
@@ -115,6 +121,19 @@ export class GiftDialog {
   protected readonly resent = signal(false);
   protected readonly step = signal<'details' | 'code'>('details');
   protected readonly error = signal<string | null>(null);
+
+  /** Group gifts bind several people, so the mailbox has to be proven first. */
+  readonly #needsConfirmed = this.data.mode === 'group' || this.data.mode === 'join';
+
+  protected get needsConfirmed() {
+    return this.#needsConfirmed;
+  }
+
+  protected readonly emailHint = computed(() =>
+    this.#needsConfirmed
+      ? $localize`:@@gift.emailHintGroup:Wir schicken dir einen Code zur Bestätigung. Kein Konto, kein Passwort.`
+      : $localize`:@@gift.emailHint:Für die Bestätigung und eine Erinnerung. Kein Konto, kein Passwort.`,
+  );
 
   protected readonly showUnits = computed(() => this.data.mode === 'reserve' && this.data.available !== 1);
   protected readonly showAmount = computed(() => this.data.mode !== 'reserve');
@@ -208,7 +227,7 @@ export class GiftDialog {
     this.resending.set(true);
     this.error.set(null);
     try {
-      await this.auth.requestCode(this.form.email().value().trim(), `/l/${this.data.token}`);
+      await this.auth.requestCode(this.#address(this.form.email().value()), `/l/${this.data.token}`);
       this.resent.set(true);
     } catch (e) {
       this.error.set(problemMessage(e));
@@ -228,19 +247,33 @@ export class GiftDialog {
     await this.auth.logout();
   }
 
+  /** The typed address, or the signed-in guest's own (the email field is hidden then). */
+  #address(typed: string): string {
+    return (this.auth.user()?.email ?? typed).trim();
+  }
+
+  #askForCode() {
+    this.step.set('code');
+    afterNextRender(() => this.codeInput()?.nativeElement.focus(), { injector: this.#injector });
+  }
+
   async #submit(v: { displayName: string; email: string; code: string; units: number; amount: number | null; message: string }) {
     this.error.set(null);
     try {
       if (this.step() === 'code') {
-        await this.auth.verifyCode(v.email.trim(), v.code.trim());
+        await this.auth.verifyCode(this.#address(v.email), v.code.trim());
         this.step.set('details');
       } else if (!this.auth.loggedIn()) {
-        const res = await this.auth.identify(v.email.trim(), v.displayName.trim(), `/l/${this.data.token}`);
+        const res = await this.auth.identify(v.email.trim(), v.displayName.trim(), `/l/${this.data.token}`, this.#needsConfirmed);
         if (res.status === 'CodeSent') {
-          this.step.set('code');
-          afterNextRender(() => this.codeInput()?.nativeElement.focus(), { injector: this.#injector });
+          this.#askForCode();
           return;
         }
+      } else if (this.#needsConfirmed && !this.auth.confirmed()) {
+        // A guest who reserved before: prove the mailbox now, then start or join the group.
+        await this.auth.requestCode(this.#address(v.email), `/l/${this.data.token}`);
+        this.#askForCode();
+        return;
       }
       await this.#save(v);
       this.ref.close('done');

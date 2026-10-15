@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -14,6 +15,7 @@ public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInMana
 {
     public static readonly TimeSpan LoginCodeValidity = TimeSpan.FromMinutes(15);
     public static readonly TimeSpan InviteValidity = TimeSpan.FromDays(7);
+    public static readonly TimeSpan GuestSessionValidity = TimeSpan.FromDays(7);
     const int MaxCodesPerHour = 5;
     const int MaxCodesPerDay = 12;
     /// Wrong guesses a code survives. Links keep working; only typing the code is blocked.
@@ -162,8 +164,17 @@ public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInMana
     }
 
     /// A new device id per sign-in, unless an existing session is renewed (e.g. after a password change bumped the security stamp).
-    public Task SignInAsync(AppUser user, string? deviceId = null) =>
-        signIn.SignInWithClaimsAsync(user, isPersistent: true, [new Claim(ClaimsExtensions.Device, deviceId ?? Secrets.Token())]);
+    /// Unconfirmed guests only get temporary access: 7 days without use (the time their reservations wait
+    /// for confirmation). A confirmed session lasts 90 days, sliding.
+    public Task SignInAsync(AppUser user, string? deviceId = null)
+    {
+        var properties = new AuthenticationProperties { IsPersistent = true };
+        if (!user.EmailConfirmed)
+        {
+            properties.ExpiresUtc = Now + GuestSessionValidity;
+        }
+        return signIn.SignInWithClaimsAsync(user, properties, [new Claim(ClaimsExtensions.Device, deviceId ?? Secrets.Token())]);
+    }
 
     /// The optional password (§5.9), throttled per account and IP (LoginThrottle).
     /// Unknown accounts take as long as known ones, so the timing doesn't tell which emails have a password.

@@ -26,6 +26,8 @@ export function problemMessage(error: unknown): string {
       return $localize`:@@problem.wrongDevice:Bitte bestätige zuerst deine E-Mail-Adresse, um das von diesem Gerät aus zu ändern.`;
     case 'too-many-unconfirmed':
       return $localize`:@@problem.tooManyUnconfirmed:Bitte bestätige zuerst deine E-Mail-Adresse – der Link ist in deiner Mailbox.`;
+    case 'email-not-confirmed':
+      return $localize`:@@problem.emailNotConfirmed:Zum gemeinsamen Schenken musst du zuerst deine E-Mail-Adresse bestätigen.`;
     case 'not-allowed':
       return $localize`:@@problem.notAllowed:Auf einer Liste, die du verwaltest oder die für dich ist, kannst du nichts reservieren.`;
     case 'group-not-allowed':

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 using Wunschzettu.Api.Data;
 using Wunschzettu.Api.Features.Gifts;
@@ -88,7 +89,7 @@ public class GiftTests(AppFactory app) : IClassFixture<AppFactory>
         var before = await Snapshot();
 
         await Reserve(await app.GuestAsync("g1@example.com", "G1"), s.Token, book.Id).Ok();
-        await Reserve(await app.GuestAsync("g2@example.com", "G2"), s.Token, bike.Id, new { isGroup = true, amount = 100 }).Ok();
+        await Reserve(await app.UserAsync("g2@example.com", "G2"), s.Token, bike.Id, new { isGroup = true, amount = 100 }).Ok();
 
         Assert.Equal(before, await Snapshot());
         await s.Owner.GetAsync($"/api/shared/{s.Token}/availability").Fails(403);
@@ -101,13 +102,44 @@ public class GiftTests(AppFactory app) : IClassFixture<AppFactory>
     {
         var s = await ListAsync("mama@example.com", forMe: false);
         var bike = await AddWish(s.Owner, s.List.Id, "Laufrad", group: true, price: 120);
-        await Reserve(await app.GuestAsync("oma@example.com", "Oma"), s.Token, bike.Id, new { isGroup = true, amount = 50, message = "Für Lena" }).Ok();
+        await Reserve(await app.UserAsync("oma@example.com", "Oma"), s.Token, bike.Id, new { isGroup = true, amount = 50, message = "Für Lena" }).Ok();
 
         var gifts = await s.Owner.GetAsync($"/api/wishlists/{s.List.Id}/gifts").Read<List<WishGiftsDto>>();
         var gift = Assert.Single(Assert.Single(gifts).Gifts);
         Assert.Equal(50, gift.PledgedTotal);
-        Assert.Equal(("Oma", true, true), (gift.Participants[0].Name, gift.Participants[0].IsOrganizer, gift.Participants[0].Unconfirmed));
+        Assert.Equal(("Oma", true, false), (gift.Participants[0].Name, gift.Participants[0].IsOrganizer, gift.Participants[0].Unconfirmed));
         await Reserve(s.Owner, s.Token, bike.Id).Fails(403, "not-allowed");
+    }
+
+    [Fact]
+    public async Task Group_gifts_need_a_confirmed_email_but_solo_reservations_do_not()
+    {
+        var s = await ListAsync("o9@example.com");
+        var bike = await AddWish(s.Owner, s.List.Id, "Velo", group: true, price: 300);
+        var book = await AddWish(s.Owner, s.List.Id, "Buch");
+        var guest = await app.GuestAsync("unconfirmed9@example.com", "Gast");
+
+        await Reserve(guest, s.Token, bike.Id, new { isGroup = true, amount = 50 }).Fails(403, "email-not-confirmed");
+        await Reserve(guest, s.Token, book.Id).Ok();
+
+        var organizer = await app.UserAsync("org9@example.com", "Org");
+        var gift = await Reserve(organizer, s.Token, bike.Id, new { isGroup = true, amount = 100 }).Read<GiftRefDto>();
+        await guest.Post($"/api/shared/{s.Token}/gifts/{gift.GiftId}/participants", new { amount = 50 }).Fails(403, "email-not-confirmed");
+    }
+
+    [Fact]
+    public async Task Every_unconfirmed_choice_sends_a_new_confirmation_mail()
+    {
+        var s = await ListAsync("o10@example.com");
+        var a = await AddWish(s.Owner, s.List.Id, "Buch");
+        var b = await AddWish(s.Owner, s.List.Id, "Socken");
+        var guest = await app.GuestAsync("mails10@example.com", "Gast");
+
+        await Reserve(guest, s.Token, a.Id).Ok();
+        await Reserve(guest, s.Token, b.Id).Ok();
+
+        var mails = await app.WithDb(db => db.Outbox.CountAsync(m => m.ToEmail == "mails10@example.com" && m.HtmlBody.Contains("/confirm?token=")));
+        Assert.Equal(2, mails);
     }
 
     [Fact]

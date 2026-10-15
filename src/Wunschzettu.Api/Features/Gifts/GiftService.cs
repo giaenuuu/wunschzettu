@@ -25,6 +25,7 @@ public record GiftError(string Type, int Status, string Detail)
     public static readonly GiftError Bought = new("gift-bought", 409, "The gift is marked as bought. The organizer has to unlock it first.");
     public static readonly GiftError WrongDevice = new("wrong-device", 403, "Confirm your email to change this from another device.");
     public static readonly GiftError TooManyUnconfirmed = new("too-many-unconfirmed", 429, "Too many unconfirmed reservations. Please confirm your email first.");
+    public static readonly GiftError EmailNotConfirmed = new("email-not-confirmed", 403, "Confirm your email address to give together.");
     public static readonly GiftError NotOrganizer = new("not-organizer", 403, "Only the organizer can do this.");
 }
 
@@ -75,6 +76,8 @@ public class GiftService(AppDbContext db, Mailer mailer, AuthService auth, TimeP
         CreateGiftRequest req, CancellationToken ct)
     {
         if (member is { IsGuest: false }) return (default, GiftError.NotAllowed);
+        // Group gifts bind several people, so they need a proven mailbox (§5.1); a solo reservation doesn't.
+        if (req.IsGroup && !actor.Confirmed) return (default, GiftError.EmailNotConfirmed);
         var wish = await LoadWishAsync(list.Id, wishId, ct);
         if (wish is null || wish.State != WishState.Active) return (default, GiftError.NotFound);
         if (wish.Gifts.Any(g => g.Participants.Any(p => p.UserId == actor.User.Id))) return (default, GiftError.AlreadyParticipating);
@@ -106,6 +109,7 @@ public class GiftService(AppDbContext db, Mailer mailer, AuthService auth, TimeP
         CancellationToken ct)
     {
         if (member is { IsGuest: false }) return GiftError.NotAllowed;
+        if (!actor.Confirmed) return GiftError.EmailNotConfirmed;
         var gift = await LoadGiftAsync(giftId, ct);
         if (gift is null || gift.Wish.WishlistId != list.Id || gift.Wish.State != WishState.Active) return GiftError.NotFound;
         if (!gift.IsGroup) return GiftError.NotGroup;

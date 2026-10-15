@@ -56,6 +56,27 @@ public class AuthTests(AppFactory app) : IClassFixture<AppFactory>
     }
 
     [Fact]
+    public async Task Identify_can_insist_on_a_code_and_unconfirmed_sessions_are_temporary()
+    {
+        var group = app.Anonymous();
+        var res = await group.Post("/api/auth/identify", new { email = "groupie@example.com", displayName = "G", requireConfirmation = true }).Read<IdentifyResponse>();
+        Assert.Equal(IdentifyStatus.CodeSent, res.Status);
+        Assert.Equal(HttpStatusCode.NoContent, (await group.GetAsync("/api/auth/me")).StatusCode);
+
+        var guest = app.Anonymous();
+        (await guest.Post("/api/auth/identify", new { email = "shortlived@example.com", displayName = "S" }).Read<IdentifyResponse>()).User!.EmailConfirmed.ToString();
+        Assert.Equal(HttpStatusCode.OK, (await guest.GetAsync("/api/auth/me")).StatusCode);
+        app.Clock.Advance(TimeSpan.FromDays(6));
+        Assert.Equal(HttpStatusCode.OK, (await guest.GetAsync("/api/auth/me")).StatusCode); // using it keeps it alive for 7 more days
+        app.Clock.Advance(TimeSpan.FromDays(8));
+        Assert.Equal(HttpStatusCode.NoContent, (await guest.GetAsync("/api/auth/me")).StatusCode); // unused for 8 days: gone
+
+        var member = await app.UserAsync("longlived@example.com", "L");
+        app.Clock.Advance(TimeSpan.FromDays(30));
+        Assert.Equal(HttpStatusCode.OK, (await member.GetAsync("/api/auth/me")).StatusCode); // confirmed: 90 days
+    }
+
+    [Fact]
     public async Task Identify_signs_in_unknown_emails_but_asks_confirmed_ones_for_a_code()
     {
         var guest = app.Anonymous();

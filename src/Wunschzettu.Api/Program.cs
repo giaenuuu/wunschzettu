@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,9 @@ builder.Services
     .AddClaimsPrincipalFactory<AppClaimsFactory>();
 
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
+// The cookie's lifetime follows the app's clock (tests move it).
+builder.Services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme)
+    .Configure<TimeProvider>((o, clock) => o.TimeProvider = clock);
 builder.Services.ConfigureApplicationCookie(o =>
 {
     o.Cookie.Name = "wz_session";

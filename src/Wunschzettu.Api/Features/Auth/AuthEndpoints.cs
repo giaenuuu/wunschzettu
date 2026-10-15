@@ -21,7 +21,9 @@ public record IdentifyRequest(
     [property: Required, EmailAddress, StringLength(254)] string Email,
     [property: Required, StringLength(100, MinimumLength = 1)] string DisplayName,
     string? Language,
-    [property: StringLength(500)] string? ReturnUrl);
+    [property: StringLength(500)] string? ReturnUrl,
+    /// Always answer with a code instead of signing in right away (group gifts need a proven mailbox).
+    bool RequireConfirmation = false);
 
 public record IdentifyResponse(IdentifyStatus Status, MeDto? User);
 
@@ -161,7 +163,7 @@ public static class AuthEndpoints
             if (ctx.User.Identity?.IsAuthenticated == true) await auth.SignOutAsync();
 
             var user = await auth.FindOrCreateAsync(req.Email, req.DisplayName, req.Language);
-            if (!await auth.MaySignInWithoutCodeAsync(user))
+            if (req.RequireConfirmation || !await auth.MaySignInWithoutCodeAsync(user))
             {
                 await auth.SendLoginCodeAsync(user, SafeReturnUrl(req.ReturnUrl));
                 return TypedResults.Ok(new IdentifyResponse(IdentifyStatus.CodeSent, null));

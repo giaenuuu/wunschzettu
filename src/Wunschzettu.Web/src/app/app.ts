@@ -66,7 +66,9 @@ import { UiToaster } from './ui/toaster';
           </div>
           <div class="menu-separator"></div>
           <a cdkMenuItem class="menu-item" routerLink="/"><ui-icon name="dashboard" /><span i18n="@@nav.overview">Übersicht</span></a>
-          <a cdkMenuItem class="menu-item" routerLink="/profile"><ui-icon name="person" /><span i18n="@@app.profile">Profil &amp; Sicherheit</span></a>
+          @if (user.emailConfirmed) {
+            <a cdkMenuItem class="menu-item" routerLink="/profile"><ui-icon name="person" /><span i18n="@@app.profile">Profil &amp; Sicherheit</span></a>
+          }
         }
         @if (!pwa.installed()) {
           <a cdkMenuItem class="menu-item" routerLink="/app"><ui-icon name="mobile_arrow_down" /><span i18n="@@app.install">App installieren</span></a>
