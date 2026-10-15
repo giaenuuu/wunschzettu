@@ -188,6 +188,7 @@ app.MapWishEndpoints();
 app.MapSharedEndpoints();
 app.MapGiftEndpoints();
 app.MapMemberEndpoints();
+app.MapInviteLinkEndpoints();
 app.MapImageEndpoints();
 app.MapScrapeEndpoints();
 app.MapSharePreview();

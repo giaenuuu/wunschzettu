@@ -174,6 +174,7 @@ public class Jobs(AppDbContext db, GiftService gifts, AuthService auth, Mailer m
         foreach (var key in orphans.SelectMany(w => w.Links).SelectMany(l => new[] { l.PreviewImageKey, l.PreviewLogoKey }).OfType<string>()) images.Delete(key);
 
         await db.LoginCodes.Where(c => c.ExpiresAt < now.AddDays(-1)).ExecuteDeleteAsync(ct);
+        await db.ListInvites.Where(i => i.ExpiresAt < now.AddDays(-1) || (i.UsedAt != null && i.UsedAt < now.AddDays(-30))).ExecuteDeleteAsync(ct);
         // Copies of mails hold codes and names; sent or given up, they go after 30 days.
         var mailCutoff = now - MailRetention;
         await db.Outbox.Where(m => (m.SentAt != null && m.SentAt < mailCutoff) || (m.SentAt == null && m.CreatedAt < mailCutoff))

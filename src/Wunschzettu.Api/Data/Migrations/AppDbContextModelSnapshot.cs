@@ -295,6 +295,50 @@ namespace Wunschzettu.Api.Data.Migrations
                     b.ToTable("GiftParticipants");
                 });
 
+            modelBuilder.Entity("Wunschzettu.Api.Data.ListInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WishlistId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("WishlistId");
+
+                    b.ToTable("ListInvites");
+                });
+
             modelBuilder.Entity("Wunschzettu.Api.Data.ListMember", b =>
                 {
                     b.Property<Guid>("WishlistId")
@@ -728,6 +772,17 @@ namespace Wunschzettu.Api.Data.Migrations
                     b.Navigation("Gift");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Wunschzettu.Api.Data.ListInvite", b =>
+                {
+                    b.HasOne("Wunschzettu.Api.Data.Wishlist", "Wishlist")
+                        .WithMany()
+                        .HasForeignKey("WishlistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Wishlist");
                 });
 
             modelBuilder.Entity("Wunschzettu.Api.Data.ListMember", b =>

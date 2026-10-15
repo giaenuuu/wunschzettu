@@ -153,6 +153,25 @@ public class GiftParticipant
     public AppUser User { get; set; } = null!;
 }
 
+public enum InviteLinkRole { Manager, Recipient }
+
+/// A link a manager shares in any channel: whoever opens it and signs in becomes co-manager or recipient.
+/// Single use, valid for 7 days. Only the hash of the token is stored, so the link is shown once.
+public class ListInvite
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid WishlistId { get; set; }
+    public InviteLinkRole Role { get; set; }
+    public required string TokenHash { get; set; }
+    public required string CreatedByUserId { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime ExpiresAt { get; set; }
+    public DateTime? UsedAt { get; set; }
+    public string? UsedByUserId { get; set; }
+
+    public Wishlist Wishlist { get; set; } = null!;
+}
+
 public enum LoginCodePurpose { Login, Confirm, Invite, DeleteAccount }
 
 /// A one-time login: a 6-digit code to type in and a token for links. Only hashes are stored.

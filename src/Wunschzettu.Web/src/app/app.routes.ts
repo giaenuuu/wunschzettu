@@ -20,6 +20,7 @@ export const routes: Routes = [
     canActivate: [requireLogin],
     loadComponent: () => import('./features/thanks/thanks').then((m) => m.Thanks),
   },
+  { path: 'invite/:token', loadComponent: () => import('./features/invite/invite').then((m) => m.Invite) },
   { path: 'l/:token', loadComponent: () => import('./features/list-view/list-view').then((m) => m.ListView) },
   { path: 'impressum', loadComponent: () => import('./features/legal/imprint').then((m) => m.Imprint) },
   { path: 'datenschutz', loadComponent: () => import('./features/legal/privacy').then((m) => m.Privacy) },

@@ -14,6 +14,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, OutboxSignal? 
     public DbSet<Gift> Gifts => Set<Gift>();
     public DbSet<GiftParticipant> GiftParticipants => Set<GiftParticipant>();
     public DbSet<LoginCode> LoginCodes => Set<LoginCode>();
+    public DbSet<ListInvite> ListInvites => Set<ListInvite>();
     public DbSet<OutboxMessage> Outbox => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -41,6 +42,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, OutboxSignal? 
                 t.Property(x => x.Palette).HasConversion<string>();
                 t.Property(x => x.Layout).HasConversion<string>();
             });
+        });
+
+        b.Entity<ListInvite>(e =>
+        {
+            e.Property(x => x.Role).HasConversion<string>();
+            e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => x.WishlistId);
+            e.HasOne(x => x.Wishlist).WithMany().HasForeignKey(x => x.WishlistId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<ListMember>(e =>

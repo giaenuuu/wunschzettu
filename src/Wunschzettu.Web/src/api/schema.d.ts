@@ -1608,6 +1608,213 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/wishlists/{id}/invite-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InviteLinkDto"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateInviteLinkRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreatedInviteLinkDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wishlists/{id}/invite-links/{inviteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    inviteId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/invite-links/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvitePeekDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/invite-links/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AcceptInviteResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/wishes/{wishId}/images": {
         parameters: {
             query?: never;
@@ -1753,6 +1960,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptInviteResponse: {
+            /** Format: uuid */
+            listId: string;
+        };
         /** @enum {unknown} */
         Availability: "InStock" | "OutOfStock" | "PreOrder" | null;
         AvailabilityDto: {
@@ -1762,6 +1973,14 @@ export interface components {
         ConfirmRequest: {
             token: string;
         };
+        CreatedInviteLinkDto: {
+            /** Format: uuid */
+            id: string;
+            role: components["schemas"]["InviteLinkRole"];
+            /** Format: date-time */
+            expiresAt: string;
+            url: string;
+        };
         CreateGiftRequest: {
             isGroup: boolean;
             /** Format: int32 */
@@ -1769,6 +1988,9 @@ export interface components {
             /** Format: double */
             amount: null | number;
             message: null | string;
+        };
+        CreateInviteLinkRequest: {
+            role: components["schemas"]["InviteLinkRole"];
         };
         CreateWishlistRequest: {
             title: string;
@@ -1835,6 +2057,22 @@ export interface components {
         IFormFile: string;
         ImportImageRequest: {
             url: string;
+        };
+        InviteLinkDto: {
+            /** Format: uuid */
+            id: string;
+            role: components["schemas"]["InviteLinkRole"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        /** @enum {unknown} */
+        InviteLinkRole: "Manager" | "Recipient";
+        InvitePeekDto: {
+            listTitle: string;
+            inviterName: null | string;
+            role: components["schemas"]["InviteLinkRole"];
         };
         InviteRequest: {
             email: string;

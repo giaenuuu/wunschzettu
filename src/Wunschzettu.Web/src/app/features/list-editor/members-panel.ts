@@ -1,10 +1,13 @@
 import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { HttpClient, httpResource } from '@angular/common/http';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { email, form, FormField, FormRoot, required } from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { Member, MemberRole, WishlistDetail } from '../../core/api';
+import { CreatedInviteLink, InviteLink, InviteLinkRole, Member, MemberRole, WishlistDetail } from '../../core/api';
+import { Auth } from '../../core/auth';
+import { ShareButton } from '../../shared/share-button';
 import { problemMessage } from '../../core/problems';
 import { UiButton } from '../../ui/button';
 import { Confirmer } from '../../ui/confirm';
@@ -17,7 +20,7 @@ import { Toaster } from '../../ui/toaster';
 @Component({
   selector: 'app-members-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormRoot, FormField, CdkMenu, CdkMenuItem, CdkMenuTrigger, UiButton, UiControl, UiField, UiIcon, UiSegmented],
+  imports: [FormRoot, FormField, CdkMenu, CdkMenuItem, CdkMenuTrigger, DatePipe, ShareButton, UiButton, UiControl, UiField, UiIcon, UiSegmented],
   template: `
     <ul class="mb-6 flex flex-col divide-y divide-line">
       @for (m of members.value() ?? []; track m.userId) {
@@ -80,6 +83,56 @@ import { Toaster } from '../../ui/toaster';
         <button uiButton type="submit" [busy]="form().submitting()"><ui-icon name="send" [size]="18" /><span i18n="@@members.invite">Einladen</span></button>
       </div>
     </form>
+
+    <section class="mt-6 flex flex-col gap-4 rounded-3xl bg-sunken/60 p-4">
+      <strong i18n="@@members.linkTitle">Per Link einladen</strong>
+      <p class="-mt-2 text-sm text-ink-muted" i18n="@@members.linkIntro">
+        Schick den Link per WhatsApp, Nachricht oder wie du willst. Wer ihn öffnet und sich anmeldet, kommt direkt in die Liste.
+      </p>
+      <ui-segmented [(value)]="linkRole" [options]="linkRoles" i18n-label="@@members.role" label="Als" (valueChange)="created.set(null)" />
+      <div class="notice notice-warn">
+        <ui-icon name="info" />
+        <div class="flex flex-col gap-1.5 text-sm">
+          <p>{{ linkWhat() }}</p>
+          <p i18n="@@members.linkTrust">Schick den Link nur an Personen, denen du vertraust. Er funktioniert für eine Person und 7 Tage lang.</p>
+        </div>
+      </div>
+
+      @if (created(); as link) {
+        <div class="flex flex-col gap-3">
+          <label class="sr-only" for="invite-link" i18n="@@members.linkLabel">Einladungslink</label>
+          <input id="invite-link" uiControl readonly [value]="link.url" (focus)="selectAll($event)" />
+          <div class="flex flex-wrap items-center gap-2">
+            <app-share-button [url]="link.url" [title]="shareTitle()" [text]="shareText()" />
+            <button uiButton variant="ghost" size="sm" type="button" (click)="created.set(null)" i18n="@@members.linkDone">Fertig</button>
+          </div>
+          <p class="text-sm text-ink-muted" i18n="@@members.linkOnce">Den Link siehst du nur jetzt. Später kannst du ihn widerrufen und einen neuen erstellen.</p>
+        </div>
+      } @else {
+        <div>
+          <button uiButton type="button" [busy]="creating()" (click)="createLink()">
+            <ui-icon name="add_link" [size]="18" /><span i18n="@@members.linkCreate">Einladungslink erstellen</span>
+          </button>
+        </div>
+      }
+
+      @if (invites.value(); as open) {
+        @if (open.length) {
+          <div class="flex flex-col gap-1 border-t border-line pt-3">
+            <span class="text-sm font-semibold" i18n="@@members.linkOpen">Offene Einladungslinks</span>
+            @for (i of open; track i.id) {
+              <div class="flex items-center gap-2 text-sm">
+                <span class="chip" [class]="i.role === 'Manager' ? 'chip-accent' : 'chip-gold'">
+                  @if (i.role === 'Manager') { <span i18n="@@members.roleManager">Mitverwaltung</span> } @else { <span i18n="@@members.roleRecipient">Beschenkt</span> }
+                </span>
+                <span class="flex-1 text-ink-muted" i18n="@@members.linkValid">gültig bis {{ i.expiresAt | date: 'mediumDate' }}</span>
+                <button uiButton variant="danger-ghost" size="sm" type="button" (click)="revoke(i)" i18n="@@members.linkRevoke">Widerrufen</button>
+              </div>
+            }
+          </div>
+        }
+      }
+    </section>
   `,
 })
 export class MembersPanel {
@@ -88,8 +141,53 @@ export class MembersPanel {
   readonly #toaster = inject(Toaster);
   readonly #confirm = inject(Confirmer);
   readonly #router = inject(Router);
+  readonly #auth = inject(Auth);
 
   protected readonly problemMessage = problemMessage;
+  protected readonly invites = httpResource<InviteLink[]>(() => `/api/wishlists/${this.list().id}/invite-links`);
+  protected readonly linkRole = signal<InviteLinkRole>('Manager');
+  protected readonly linkRoles: SegmentOption<InviteLinkRole>[] = [
+    { value: 'Manager', label: $localize`:@@members.roleManager:Mitverwaltung` },
+    { value: 'Recipient', label: $localize`:@@members.roleRecipient:Beschenkt` },
+  ];
+  protected readonly creating = signal(false);
+  protected readonly created = signal<CreatedInviteLink | null>(null);
+
+  protected readonly linkWhat = computed(() =>
+    this.linkRole() === 'Manager'
+      ? $localize`:@@members.linkWhatManager:Wer den Link benutzt, kann die Liste mitverwalten: Wünsche, Einstellungen und Personen ändern – und sieht, wer was schenkt.`
+      : $localize`:@@members.linkWhatRecipient:Die Person bekommt eine eigene Sicht: Sie kann Wünsche ergänzen, sieht aber nie, was schon verschenkt wird. Die Überraschung bleibt.`,
+  );
+  protected readonly shareTitle = computed(() => $localize`:@@members.shareTitle:Einladung zur Wunschliste «${this.list().title}:title:»`);
+  protected readonly shareText = computed(() => {
+    const who = this.#auth.user()?.displayName || $localize`:@@members.someone:Jemand`;
+    const title = this.list().title;
+    return this.linkRole() === 'Manager'
+      ? $localize`:@@members.shareTextManager:${who}:who: lädt dich ein, die Wunschliste «${title}:title:» mitzuverwalten:`
+      : $localize`:@@members.shareTextRecipient:${who}:who: hat die Wunschliste «${title}:title:» für dich angelegt:`;
+  });
+
+  protected async createLink() {
+    this.creating.set(true);
+    try {
+      this.created.set(await firstValueFrom(this.#http.post<CreatedInviteLink>(`/api/wishlists/${this.list().id}/invite-links`, { role: this.linkRole() })));
+      this.invites.reload();
+    } catch (e) {
+      this.#toaster.show(problemMessage(e), { tone: 'error' });
+    } finally {
+      this.creating.set(false);
+    }
+  }
+
+  protected async revoke(i: InviteLink) {
+    await this.#run(firstValueFrom(this.#http.delete(`/api/wishlists/${this.list().id}/invite-links/${i.id}`)));
+    this.invites.reload();
+  }
+
+  protected selectAll(event: Event) {
+    (event.target as HTMLInputElement).select();
+  }
+
   protected readonly members = httpResource<Member[]>(() => `/api/wishlists/${this.list().id}/members`);
   protected readonly roles: SegmentOption<MemberRole>[] = [
     { value: 'Manager', label: $localize`:@@members.roleManager:Mitverwaltung` },
