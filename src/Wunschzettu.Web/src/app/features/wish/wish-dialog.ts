@@ -527,7 +527,7 @@ export class WishDialog {
       links: v.links.map((l) =>
         l.kind === 'Online'
           ? { kind: 'Online', url: normalizeUrl(l.url), label: l.label.trim() || null, note: l.note.trim() || null, useLogo: l.picture === 'logo' }
-          : { kind: 'Store', url: null, label: l.label.trim(), note: l.note.trim() || null },
+          : { kind: 'Store', url: null, label: l.label.trim(), note: l.note.trim() || null, useLogo: false },
       ),
     };
     this.error.set(null);
