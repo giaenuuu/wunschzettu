@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { LinkKind, ScrapeResult, Wish, WishImage, WishRequest } from '../../core/api';
 import { problemMessage, problemType } from '../../core/problems';
 import { LinkCard } from '../../shared/link-card';
-import { hostOf, nameFromUrl, normalizeUrl, withBrand } from '../../shared/links';
+import { hostOf, nameFromUrl, normalizeUrl, previewImageUrl, withBrand } from '../../shared/links';
 import { UiButton } from '../../ui/button';
 import { DIALOG_DATA, DialogRef, UiDialog, UiDialogActions } from '../../ui/dialog';
 import { UiControl, UiField } from '../../ui/field';
@@ -183,7 +183,7 @@ interface LinkModel {
                 }
                 @for (p of pending(); track $index) {
                   <div class="relative size-24 overflow-hidden rounded-2xl bg-sunken ring-2 ring-accent/40">
-                    <img [src]="p.kind === 'file' ? p.preview : p.url" alt="" class="size-full object-cover" referrerpolicy="no-referrer" />
+                    <img [src]="p.kind === 'file' ? p.preview : previewUrl(p.url)" alt="" class="size-full object-cover" />
                     <button type="button" class="thumb-remove" (click)="removePending(p)" i18n-aria-label="@@wish.removeImage" aria-label="Bild entfernen"><span><ui-icon name="close" [size]="16" /></span></button>
                   </div>
                 }
@@ -211,7 +211,7 @@ interface LinkModel {
                         i18n-aria-label="@@wish.useImage"
                         aria-label="Bild übernehmen"
                       >
-                        <img [src]="s" alt="" loading="lazy" referrerpolicy="no-referrer" class="size-full object-contain" />
+                        <img [src]="previewUrl(s)" alt="" loading="lazy" (error)="brokenSuggestion(s)" class="size-full object-contain" />
                         @if (isPicked(s)) {
                           <span class="absolute top-1 right-1 grid size-6 place-items-center rounded-full bg-accent text-on-accent"><ui-icon name="check" [size]="16" /></span>
                         }
@@ -435,6 +435,14 @@ export class WishDialog {
     if (r.images.length) this.pending.set([{ kind: 'remote', url: r.images[0] }]);
     this.imported.set(r.siteName || hostOf(r.url));
     this.goTo('form');
+  }
+
+  protected readonly previewUrl = previewImageUrl;
+
+  /** A picture the server can't read (blocked, not an image) is no use for the wish either: drop it from the offer. */
+  protected brokenSuggestion(url: string) {
+    this.suggestions.update((list) => list.filter((s) => s !== url));
+    this.pending.update((list) => list.filter((p) => !(p.kind === 'remote' && p.url === url)));
   }
 
   protected isPicked(url: string) {

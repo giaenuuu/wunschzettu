@@ -9,6 +9,7 @@ public class ImageStore(IOptions<AppOptions> options)
 {
     const int MaxEdge = 1600;
     const int ThumbEdge = 480;
+    const int PreviewEdge = 320;
     /// A 24 MP photo decodes to ~100 MB; bigger is refused, and the gate keeps parallel decodes from adding up.
     const long MaxPixels = 24_000_000;
     static readonly SemaphoreSlim Gate = new(2);
@@ -54,6 +55,20 @@ public class ImageStore(IOptions<AppOptions> options)
         return key;
     }
 
+    /// A small WebP of a shop picture for the wish dialog's preview. Nothing is stored: the browser never talks to the shop.
+    public byte[]? RenderPreview(Stream input)
+    {
+        Gate.Wait();
+        try
+        {
+            using var upright = Decode(input);
+            if (upright is null) return null;
+            using var data = Render(upright, PreviewEdge, 70);
+            return data.ToArray();
+        }
+        finally { Gate.Release(); }
+    }
+
     static SKBitmap? Decode(Stream input)
     {
         using var codec = SKCodec.Create(input);
@@ -84,14 +99,19 @@ public class ImageStore(IOptions<AppOptions> options)
 
     static long Write(SKBitmap source, int maxEdge, int quality, string path)
     {
+        using var data = Render(source, maxEdge, quality);
+        using var file = File.Create(path);
+        data.SaveTo(file);
+        return data.Size;
+    }
+
+    static SKData Render(SKBitmap source, int maxEdge, int quality)
+    {
         var scale = Math.Min(1.0, (double)maxEdge / Math.Max(source.Width, source.Height));
         var info = new SKImageInfo(Math.Max(1, (int)Math.Round(source.Width * scale)), Math.Max(1, (int)Math.Round(source.Height * scale)));
         using var resized = scale < 1 ? source.Resize(info, new SKSamplingOptions(SKCubicResampler.Mitchell)) : null;
         using var image = SKImage.FromBitmap(resized ?? source);
-        using var data = image.Encode(SKEncodedImageFormat.Webp, quality);
-        using var file = File.Create(path);
-        data.SaveTo(file);
-        return data.Size;
+        return image.Encode(SKEncodedImageFormat.Webp, quality);
     }
 
     /// Phones store photos sideways plus an EXIF hint; bake the rotation into the pixels. Returns src itself if upright.

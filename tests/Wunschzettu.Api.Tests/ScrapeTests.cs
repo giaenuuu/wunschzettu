@@ -241,6 +241,23 @@ public class ScrapeTests(AppFactory app) : IClassFixture<AppFactory>
     }
 
     [Fact]
+    public async Task Shop_pictures_are_previewed_through_the_server()
+    {
+        app.Web.Image("https://shop.example/preview.png");
+        app.Web.Page("https://shop.example/preview.html", "<p>no image</p>");
+        var c = await app.UserAsync("preview@example.com", "Preview");
+
+        var res = await c.GetAsync("/api/scrape/image?url=" + Uri.EscapeDataString("https://shop.example/preview.png"));
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Equal("image/webp", res.Content.Headers.ContentType!.MediaType);
+        Assert.True((await res.Content.ReadAsByteArrayAsync()).Length is > 0 and < 50_000);
+
+        await c.GetAsync("/api/scrape/image?url=" + Uri.EscapeDataString("https://shop.example/preview.html")).Fails(400, "not-an-image");
+        await c.GetAsync("/api/scrape/image?url=" + Uri.EscapeDataString("http://169.254.169.254/latest")).Fails(400, "invalid-url");
+        await app.Anonymous().GetAsync("/api/scrape/image?url=" + Uri.EscapeDataString("https://shop.example/preview.png")).Fails(401);
+    }
+
+    [Fact]
     public async Task Images_can_be_imported_from_a_url()
     {
         app.Web.Image("https://shop.example/teddy.png");

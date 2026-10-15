@@ -61,3 +61,8 @@ export function withBrand(title: string, brand: string | null | undefined): stri
   if (!brand || title.toLowerCase().includes(brand.toLowerCase())) return title;
   return `${brand} ${title}`;
 }
+
+/** A shop picture as the server shows it: fetched and shrunk there, so the browser never contacts the shop. */
+export function previewImageUrl(url: string): string {
+  return `/api/scrape/image?url=${encodeURIComponent(url)}`;
+}

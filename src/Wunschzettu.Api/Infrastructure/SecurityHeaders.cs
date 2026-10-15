@@ -4,9 +4,9 @@ namespace Wunschzettu.Api.Infrastructure;
 public static class SecurityHeaders
 {
     /// Everything comes from this server. Inline styles: Angular's component styles and icon masks.
-    /// Images from https: the wish dialog previews pictures straight from the shop before importing them.
+    /// Images only from here too: the wish dialog previews shop pictures through /api/scrape/image.
     const string ContentSecurityPolicy =
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; " +
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
         "font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; " +
         "base-uri 'self'; form-action 'self'; object-src 'none'";
 
