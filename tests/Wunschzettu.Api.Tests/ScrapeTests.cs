@@ -241,6 +241,46 @@ public class ScrapeTests(AppFactory app) : IClassFixture<AppFactory>
     }
 
     [Fact]
+    public void Parser_finds_logo_candidates_best_first_and_skips_formats_we_cannot_decode()
+    {
+        const string html = """
+            <link rel="icon" href="/favicon.ico"><link rel="icon" type="image/svg+xml" href="/logo.svg">
+            <link rel="shortcut icon" sizes="32x32" href="/f32.png"><link rel="icon" sizes="192x192" href="/f192.png">
+            <link rel="apple-touch-icon" sizes="120x120" href="/a120.png"><link rel="apple-touch-icon" sizes="180x180" href="https://cdn.example/a180.png">
+            """;
+        var info = PageParser.Parse(html, new Uri("https://shop.example/p/1"));
+        Assert.Equal(["https://cdn.example/a180.png", "https://shop.example/a120.png", "https://shop.example/f192.png"], info.Icons);
+    }
+
+    [Fact]
+    public async Task Links_can_show_the_shop_logo_instead_of_the_product_picture()
+    {
+        app.Web.Page("https://logo.example/shirt", """
+            <meta property="og:title" content="Shirt"><meta property="og:image" content="https://logo.example/shirt.png">
+            <link rel="apple-touch-icon" href="/touch.png">
+            """);
+        app.Web.Image("https://logo.example/shirt.png");
+        app.Web.Image("https://logo.example/touch.png");
+        var c = await app.UserAsync("logo@example.com", "Logo");
+        var list = await c.Post("/api/wishlists", new { title = "Kleider" }).Read<WishlistDetailDto>();
+
+        var wish = await c.Post($"/api/wishlists/{list.Id}/wishes", new { name = "Shirt", links = new[] { new { kind = "Online", url = "https://logo.example/shirt", useLogo = true } } })
+            .Read<WishDto>();
+        var link = wish.Links.Single();
+        Assert.True(link.UseLogo);
+        Assert.NotNull(link.Preview!.ImageUrl);
+        Assert.NotNull(link.Preview.LogoUrl);
+        Assert.NotEqual(link.Preview.ImageUrl, link.Preview.LogoUrl);
+        Assert.Equal(HttpStatusCode.OK, (await app.Anonymous().GetAsync(link.Preview.LogoUrl)).StatusCode);
+
+        // Switching back only flips the flag; both pictures stay.
+        var back = await c.Put($"/api/wishes/{wish.Id}", new { name = "Shirt", links = new[] { new { kind = "Online", url = "https://logo.example/shirt", useLogo = false } } })
+            .Read<WishDto>();
+        Assert.False(back.Links.Single().UseLogo);
+        Assert.Equal(link.Preview, back.Links.Single().Preview);
+    }
+
+    [Fact]
     public async Task Shop_pictures_are_previewed_through_the_server()
     {
         app.Web.Image("https://shop.example/preview.png");

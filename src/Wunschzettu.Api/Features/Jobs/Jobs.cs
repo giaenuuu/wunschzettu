@@ -171,7 +171,7 @@ public class Jobs(AppDbContext db, GiftService gifts, AuthService auth, Mailer m
         db.Wishes.RemoveRange(orphans);
         await db.SaveChangesAsync(ct);
         foreach (var key in orphans.SelectMany(w => w.Images).Select(i => i.FileKey)) images.Delete(key);
-        foreach (var key in orphans.SelectMany(w => w.Links).Select(l => l.PreviewImageKey).OfType<string>()) images.Delete(key);
+        foreach (var key in orphans.SelectMany(w => w.Links).SelectMany(l => new[] { l.PreviewImageKey, l.PreviewLogoKey }).OfType<string>()) images.Delete(key);
 
         await db.LoginCodes.Where(c => c.ExpiresAt < now.AddDays(-1)).ExecuteDeleteAsync(ct);
         // Copies of mails hold codes and names; sent or given up, they go after 30 days.
@@ -192,8 +192,9 @@ public class Jobs(AppDbContext db, GiftService gifts, AuthService auth, Mailer m
     {
         var keys = await db.WishImages.Where(i => db.Wishes.Any(w => w.Id == i.WishId && w.WishlistId == list.Id))
             .Select(i => i.FileKey).ToListAsync(ct);
-        keys.AddRange(await db.Wishes.Where(w => w.WishlistId == list.Id).SelectMany(w => w.Links)
-            .Where(l => l.PreviewImageKey != null).Select(l => l.PreviewImageKey!).ToListAsync(ct));
+        var links = await db.Wishes.Where(w => w.WishlistId == list.Id).SelectMany(w => w.Links)
+            .Select(l => new { l.PreviewImageKey, l.PreviewLogoKey }).ToListAsync(ct);
+        keys.AddRange(links.SelectMany(l => new[] { l.PreviewImageKey, l.PreviewLogoKey }).OfType<string>());
         db.Wishlists.Remove(list);
         await db.SaveChangesAsync(ct);
         foreach (var key in keys) images.Delete(key);

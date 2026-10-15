@@ -73,7 +73,7 @@ public static class WishEndpoints
         var wish = await LoadEditableAsync(id, user, db, ct, details: true);
         if (wish is null) return TypedResults.NotFound();
 
-        var files = wish.Images.Select(i => i.FileKey).Concat(wish.Links.Select(l => l.PreviewImageKey).OfType<string>()).ToList();
+        var files = wish.Images.Select(i => i.FileKey).Concat(wish.Links.SelectMany(l => new[] { l.PreviewImageKey, l.PreviewLogoKey }).OfType<string>()).ToList();
         wish.Wishlist.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         if (await db.Gifts.AnyAsync(g => g.WishId == wish.Id, ct))
         {
@@ -81,7 +81,7 @@ public static class WishEndpoints
                 await gifts.NotifyGiversAsync(wish, WishChange.Removed, ct);
             wish.State = WishState.Removed;
             db.WishImages.RemoveRange(wish.Images);
-            foreach (var link in wish.Links) link.PreviewImageKey = null;
+            foreach (var link in wish.Links) { link.PreviewImageKey = null; link.PreviewLogoKey = null; }
             await db.SaveChangesEditWinsAsync(ct);
         }
         else

@@ -29,11 +29,15 @@ type PendingImage = { kind: 'file'; file: File; preview: string } | { kind: 'rem
 
 type QuantityMode = 'exact' | 'unlimited';
 
+type LinkPicture = 'image' | 'logo';
+
 interface LinkModel {
   kind: LinkKind;
   url: string;
   label: string;
   note: string;
+  /** What the link card shows: the product picture or the shop's logo. */
+  picture: LinkPicture;
 }
 
 /**
@@ -240,8 +244,14 @@ interface LinkModel {
                     <ui-field i18n-label="@@wish.linkUrl" label="Link">
                       <input uiControl type="url" inputmode="url" placeholder="https://…" [formField]="link.url" />
                     </ui-field>
-                    @if (savedPreview(link.url().value()); as saved) {
+                    @if (savedPreview(link.url().value(), link.picture().value()); as saved) {
                       <app-link-card [link]="saved" />
+                    }
+                    @if (link.url().value().trim()) {
+                      <div class="flex flex-col gap-1.5">
+                        <ui-segmented [formField]="link.picture" [options]="linkPictures" i18n-label="@@wish.linkPicture" label="Bild in der Vorschau" />
+                        <p class="text-sm text-ink-muted" i18n="@@wish.linkPictureHint">Zeigt das Produktbild oder das Logo des Shops. Die Vorschau wird beim Speichern geladen.</p>
+                      </div>
                     }
                     <div class="grid gap-3 sm:grid-cols-2">
                       <ui-field i18n-label="@@wish.shopName" label="Shop" [optional]="true">
@@ -310,6 +320,10 @@ export class WishDialog {
   protected readonly linkKinds: SegmentOption<LinkKind>[] = [
     { value: 'Online', label: $localize`:@@wish.kindOnline:Online`, icon: 'language' },
     { value: 'Store', label: $localize`:@@wish.kindStore:Laden`, icon: 'storefront' },
+  ];
+  protected readonly linkPictures: SegmentOption<LinkPicture>[] = [
+    { value: 'image', label: $localize`:@@wish.pictureProduct:Produktbild`, icon: 'image' },
+    { value: 'logo', label: $localize`:@@wish.pictureLogo:Shop-Logo`, icon: 'storefront' },
   ];
   protected readonly quantityModes: SegmentOption<QuantityMode>[] = [
     { value: 'exact', label: $localize`:@@wish.quantityExact:Genaue Anzahl` },
@@ -457,7 +471,7 @@ export class WishDialog {
   // ---- Links
 
   protected addLink(kind: LinkKind) {
-    this.#model.update((m) => ({ ...m, links: [...m.links, { kind, url: '', label: '', note: '' }] }));
+    this.#model.update((m) => ({ ...m, links: [...m.links, { kind, url: '', label: '', note: '', picture: 'image' as LinkPicture }] }));
   }
 
   protected removeLink(index: number) {
@@ -470,9 +484,10 @@ export class WishDialog {
   }
 
   /** The preview the server already has for this URL, shown while editing. */
-  protected savedPreview(url: string) {
+  protected savedPreview(url: string, picture: LinkPicture) {
     const normalized = normalizeUrl(url);
-    return this.data.wish?.links.find((l) => l.kind === 'Online' && l.url === normalized && l.preview) ?? null;
+    const saved = this.data.wish?.links.find((l) => l.kind === 'Online' && l.url === normalized && l.preview);
+    return saved ? { ...saved, useLogo: picture === 'logo' } : null;
   }
 
   // ---- Images
@@ -511,7 +526,7 @@ export class WishDialog {
       groupGiftAllowed: v.groupGiftAllowed,
       links: v.links.map((l) =>
         l.kind === 'Online'
-          ? { kind: 'Online', url: normalizeUrl(l.url), label: l.label.trim() || null, note: l.note.trim() || null }
+          ? { kind: 'Online', url: normalizeUrl(l.url), label: l.label.trim() || null, note: l.note.trim() || null, useLogo: l.picture === 'logo' }
           : { kind: 'Store', url: null, label: l.label.trim(), note: l.note.trim() || null },
       ),
     };
@@ -569,12 +584,12 @@ function toModel(w?: Wish) {
     quantityMode: (quantity === null ? 'unlimited' : 'exact') as QuantityMode,
     quantity: quantity !== null && quantity > 1 ? quantity : 2,
     groupGiftAllowed: w?.groupGiftAllowed ?? false,
-    links: (w?.links ?? []).map((l): LinkModel => ({ kind: l.kind, url: l.url ?? '', label: l.label ?? '', note: l.note ?? '' })),
+    links: (w?.links ?? []).map((l): LinkModel => ({ kind: l.kind, url: l.url ?? '', label: l.label ?? '', note: l.note ?? '', picture: l.useLogo ? 'logo' : 'image' })),
   };
 }
 
 function onlineLink(url: string): LinkModel {
-  return { kind: 'Online', url, label: '', note: '' };
+  return { kind: 'Online', url, label: '', note: '', picture: 'image' };
 }
 
 function fileBody(file: File) {

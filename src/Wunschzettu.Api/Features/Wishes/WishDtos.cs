@@ -9,15 +9,19 @@ public record WishLinkRequest(
     LinkKind Kind,
     [property: StringLength(100)] string? Label,
     [property: StringLength(2000)] string? Url,
-    [property: StringLength(500)] string? Note);
+    [property: StringLength(500)] string? Note,
+    /// Online links: show the shop's logo instead of the product picture.
+    bool UseLogo = false);
 
-public record LinkPreviewDto(string? Title, string? SiteName, string? ImageUrl);
+public record LinkPreviewDto(string? Title, string? SiteName, string? ImageUrl, string? LogoUrl);
 
-public record WishLinkDto(LinkKind Kind, string? Label, string? Url, string? Note, LinkPreviewDto? Preview)
+public record WishLinkDto(LinkKind Kind, string? Label, string? Url, string? Note, bool UseLogo, LinkPreviewDto? Preview)
 {
-    public static WishLinkDto From(WishLink l) => new(l.Kind, l.Label, l.Url, l.Note,
-        l.PreviewTitle is null && l.PreviewImageKey is null ? null
-            : new LinkPreviewDto(l.PreviewTitle, l.PreviewSiteName, l.PreviewImageKey is { } key ? $"/img/{key}_thumb.webp" : null));
+    static string? Thumb(string? key) => key is null ? null : $"/img/{key}_thumb.webp";
+
+    public static WishLinkDto From(WishLink l) => new(l.Kind, l.Label, l.Url, l.Note, l.UseLogo,
+        l.PreviewTitle is null && l.PreviewImageKey is null && l.PreviewLogoKey is null ? null
+            : new LinkPreviewDto(l.PreviewTitle, l.PreviewSiteName, Thumb(l.PreviewImageKey), Thumb(l.PreviewLogoKey)));
 }
 
 public record WishImageDto(Guid Id, string Url, string ThumbUrl);

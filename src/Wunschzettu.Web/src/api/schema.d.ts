@@ -136,6 +136,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/scrape/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    url: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/me/deletion-code": {
         parameters: {
             query?: never;
@@ -1787,6 +1822,8 @@ export interface components {
             displayName: string;
             language: null | string;
             returnUrl: null | string;
+            /** @default false */
+            requireConfirmation: boolean;
         };
         IdentifyResponse: {
             status: components["schemas"]["IdentifyStatus"];
@@ -1814,6 +1851,7 @@ export interface components {
             title: null | string;
             siteName: null | string;
             imageUrl: null | string;
+            logoUrl: null | string;
         };
         /** @enum {unknown} */
         ListAccess: "Link" | "Invited";
@@ -2035,6 +2073,7 @@ export interface components {
             label: null | string;
             url: null | string;
             note: null | string;
+            useLogo: boolean;
             preview: null | components["schemas"]["LinkPreviewDto"];
         };
         WishLinkRequest: {
@@ -2042,6 +2081,8 @@ export interface components {
             label: null | string;
             url: null | string;
             note: null | string;
+            /** @default false */
+            useLogo: boolean;
         };
         WishlistDetailDto: {
             /** Format: uuid */

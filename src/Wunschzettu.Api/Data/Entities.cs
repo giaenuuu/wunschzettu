@@ -100,6 +100,10 @@ public class WishLink
     public string? PreviewTitle { get; set; }
     public string? PreviewSiteName { get; set; }
     public string? PreviewImageKey { get; set; }
+    /// The shop's own logo (apple-touch-icon / favicon), same thumbnail format. The owner picks which one the card shows.
+    public string? PreviewLogoKey { get; set; }
+    /// Show the shop logo instead of the product picture.
+    public bool UseLogo { get; set; }
     public DateTime? PreviewFetchedAt { get; set; }
 }
 

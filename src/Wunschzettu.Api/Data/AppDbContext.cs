@@ -71,6 +71,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, OutboxSignal? 
             e.Property(x => x.PreviewTitle).HasMaxLength(300);
             e.Property(x => x.PreviewSiteName).HasMaxLength(100);
             e.Property(x => x.PreviewImageKey).HasMaxLength(40);
+            e.Property(x => x.PreviewLogoKey).HasMaxLength(40);
         });
 
         b.Entity<WishImage>(e =>

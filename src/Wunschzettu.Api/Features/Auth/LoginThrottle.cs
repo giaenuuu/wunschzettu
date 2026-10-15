@@ -6,8 +6,12 @@ namespace Wunschzettu.Api.Features.Auth;
 /// Wrong passwords slow down guessing without letting a stranger lock the owner out (§5.5):
 /// 5 failures per account and IP block only that IP; 30 per account from anywhere block password login
 /// for everyone, which only a distributed attack reaches. Codes and links keep working either way.
-public class LoginThrottle(IMemoryCache cache, TimeProvider clock, ILookupNormalizer normalizer)
+public class LoginThrottle(IMemoryCache cache, TimeProvider clock)
 {
+    /// Identity's default normalizer, created here: the registered one is scoped, and this class is a singleton
+    /// (a scoped service in a singleton fails the start in Development, where scopes are validated).
+    static readonly ILookupNormalizer Normalizer = new UpperInvariantLookupNormalizer();
+
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(15);
     const int PerIp = 5;
     const int PerAccount = 30;
@@ -39,5 +43,5 @@ public class LoginThrottle(IMemoryCache cache, TimeProvider clock, ILookupNormal
     string AccountKey(string email) => $"login-fail:{Normalize(email)}";
     /// The same normalization Identity uses to find the account, so look-alike spellings
     /// (e.g. the Kelvin sign for "k") share one bucket.
-    string Normalize(string email) => normalizer.NormalizeEmail(email.Trim()) ?? "";
+    string Normalize(string email) => Normalizer.NormalizeEmail(email.Trim()) ?? "";
 }

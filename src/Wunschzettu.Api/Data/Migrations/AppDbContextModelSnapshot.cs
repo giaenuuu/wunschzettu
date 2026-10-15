@@ -538,6 +538,10 @@ namespace Wunschzettu.Api.Data.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PreviewLogoKey")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PreviewSiteName")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
@@ -552,6 +556,9 @@ namespace Wunschzettu.Api.Data.Migrations
                     b.Property<string>("Url")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("UseLogo")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("WishId")
                         .HasColumnType("TEXT");

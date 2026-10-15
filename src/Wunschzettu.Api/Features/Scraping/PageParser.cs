@@ -11,7 +11,7 @@ public enum Availability { InStock, OutOfStock, PreOrder }
 /// and schema.org Product data, as JSON-LD or microdata.
 public record PageInfo(
     string? Title, string? Description, decimal? Price, string? Currency, string? SiteName, List<string> Images,
-    string? Brand = null, string? Gtin = null, Availability? Availability = null);
+    string? Brand = null, string? Gtin = null, Availability? Availability = null, List<string>? Icons = null);
 
 public static partial class PageParser
 {
@@ -66,7 +66,28 @@ public static partial class PageParser
         return new PageInfo(Limit(StripSiteSuffix(title, pageUrl, siteName), 200), Limit(description, 4000),
             price is >= 0 and < 10_000_000 ? price : null,
             currency is { Length: 3 } c && c.All(char.IsLetter) ? c.ToUpperInvariant() : null, Limit(siteName, 100), images,
-            Limit(brand, 100), gtin, availability);
+            Limit(brand, 100), gtin, availability, Icons(html, pageUrl));
+    }
+
+    /// The shop's logo candidates, best first: apple-touch-icons (large, square), then PNG/JPEG favicons by size.
+    /// SVG and ICO are skipped, SkiaSharp can't decode them.
+    static List<string> Icons(string html, Uri pageUrl)
+    {
+        var found = new List<(int Rank, int Size, string Url)>();
+        foreach (Match tag in LinkTag().Matches(html))
+        {
+            var attrs = Attributes(tag.Value);
+            var rel = attrs.GetValueOrDefault("rel")?.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
+            var apple = rel.Any(r => r.StartsWith("apple-touch-icon"));
+            if (!apple && !rel.Contains("icon")) continue;
+            if (attrs.GetValueOrDefault("href") is not { Length: > 0 } href) continue;
+            if (!Uri.TryCreate(pageUrl, WebUtility.HtmlDecode(href), out var abs) || abs.Scheme is not ("http" or "https")) continue;
+            var path = abs.AbsolutePath.ToLowerInvariant();
+            if (path.EndsWith(".svg") || path.EndsWith(".ico") || attrs.GetValueOrDefault("type") is "image/svg+xml" or "image/x-icon" or "image/vnd.microsoft.icon") continue;
+            var size = SizeAttribute().Match(attrs.GetValueOrDefault("sizes") ?? "") is { Success: true } m ? int.Parse(m.Groups[1].Value) : 0;
+            found.Add((apple ? 0 : 1, size, abs.AbsoluteUri));
+        }
+        return found.OrderBy(f => f.Rank).ThenByDescending(f => f.Size).Select(f => f.Url).Distinct().Take(3).ToList();
     }
 
     /// "Lego Technic Porsche | Galaxus" → "Lego Technic Porsche": titles often end with the shop's name, sometimes plus junk.
@@ -245,6 +266,12 @@ public static partial class PageParser
     /// <meta> tags, plus any element carrying microdata (itemprop) such as <span itemprop="price" content="…">.
     [GeneratedRegex(@"<meta\b[^>]*>|<[a-z]+\b[^>]*\bitemprop\s*=[^>]*>", RegexOptions.IgnoreCase)]
     private static partial Regex MetaTag();
+
+    [GeneratedRegex(@"<link\b[^>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex LinkTag();
+
+    [GeneratedRegex(@"(\d{1,4})x\d{1,4}")]
+    private static partial Regex SizeAttribute();
 
     [GeneratedRegex(@"\s[-|–—·:]\s([^-|–—·:]*)$")]
     private static partial Regex TitleSuffix();

@@ -21,8 +21,15 @@ import { hostOf } from './links';
         rel="noopener noreferrer nofollow"
         class="group/link flex items-center gap-3 rounded-2xl border border-line bg-raised p-2 pr-3 text-ink no-underline transition-colors hover:border-accent-line hover:bg-accent-soft/40"
       >
-        @if (l.preview?.imageUrl; as image) {
-          <img [src]="image" alt="" loading="lazy" decoding="async" class="size-14 shrink-0 rounded-xl bg-sunken object-cover" />
+        @if (picture(); as pic) {
+          <img
+            [src]="pic.url"
+            alt=""
+            loading="lazy"
+            decoding="async"
+            class="size-14 shrink-0 rounded-xl"
+            [class]="pic.logo ? 'bg-white object-contain p-1.5' : 'bg-sunken object-cover'"
+          />
         } @else {
           <span class="grid size-14 shrink-0 place-items-center rounded-xl bg-sunken text-ink-muted"><ui-icon name="language" [size]="24" /></span>
         }
@@ -52,6 +59,16 @@ import { hostOf } from './links';
 })
 export class LinkCard {
   readonly link = input.required<WishLink>();
+
+  /** The owner's choice (product picture or shop logo); if the chosen one doesn't exist, the other. */
+  protected readonly picture = computed(() => {
+    const l = this.link();
+    const p = l.preview;
+    if (l.useLogo && p?.logoUrl) return { url: p.logoUrl, logo: true };
+    if (p?.imageUrl) return { url: p.imageUrl, logo: false };
+    if (p?.logoUrl) return { url: p.logoUrl, logo: true };
+    return null;
+  });
 
   protected readonly site = computed(() => {
     const l = this.link();

@@ -22,6 +22,7 @@ public class LinkPreviews(PageScraper scraper, ImageStore images, TimeProvider c
             Label = Trimmed(l.Label),
             Url = l.Kind == LinkKind.Online ? Trimmed(l.Url) : null,
             Note = Trimmed(l.Note),
+            UseLogo = l.Kind == LinkKind.Online && l.UseLogo,
             SortOrder = i,
         }).ToList();
 
@@ -29,7 +30,9 @@ public class LinkPreviews(PageScraper scraper, ImageStore images, TimeProvider c
         var toFetch = new List<WishLink>();
         foreach (var link in links.Where(l => l.Kind == LinkKind.Online))
         {
-            var same = old.FirstOrDefault(o => o.Url == link.Url && o.PreviewFetchedAt is not null && !kept.Contains(o));
+            // Choosing the logo for a link fetched before logos existed fetches it again.
+            var same = old.FirstOrDefault(o => o.Url == link.Url && o.PreviewFetchedAt is not null && !kept.Contains(o)
+                && (!link.UseLogo || o.PreviewLogoKey is not null));
             if (same is null)
             {
                 toFetch.Add(link);
@@ -39,6 +42,7 @@ public class LinkPreviews(PageScraper scraper, ImageStore images, TimeProvider c
             link.PreviewTitle = same.PreviewTitle;
             link.PreviewSiteName = same.PreviewSiteName;
             link.PreviewImageKey = same.PreviewImageKey;
+            link.PreviewLogoKey = same.PreviewLogoKey;
             link.PreviewFetchedAt = same.PreviewFetchedAt;
         }
 
@@ -51,7 +55,7 @@ public class LinkPreviews(PageScraper scraper, ImageStore images, TimeProvider c
 
         wish.Links.Clear();
         wish.Links.AddRange(links);
-        return old.Where(o => !kept.Contains(o) && o.PreviewImageKey is not null).Select(o => o.PreviewImageKey!).ToList();
+        return old.Where(o => !kept.Contains(o)).SelectMany(o => new[] { o.PreviewImageKey, o.PreviewLogoKey }).OfType<string>().ToList();
     }
 
     public void DeleteImages(IEnumerable<string> keys)
@@ -63,20 +67,15 @@ public class LinkPreviews(PageScraper scraper, ImageStore images, TimeProvider c
     {
         try
         {
-            var page = (await scraper.ScrapeAsync(link.Url!, budget)).Page;
-            if (page is not null)
+            var outcome = await scraper.ScrapeAsync(link.Url!, budget);
+            if (outcome.Page is { } page)
             {
                 link.PreviewTitle = page.Title;
                 link.PreviewSiteName = page.SiteName;
-                foreach (var url in page.Images.Take(ImagesToTry))
-                {
-                    var image = await scraper.FetchImageAsync(url, budget);
-                    if (image.Bytes is null) continue;
-                    using var stream = new MemoryStream(image.Bytes);
-                    if (images.SaveThumbnail(stream) is not { } key) continue;
-                    link.PreviewImageKey = key;
-                    break;
-                }
+                link.PreviewImageKey = await FirstThumbnailAsync(page.Images.Take(ImagesToTry), budget);
+                // Many shops list no icon in their markup but serve one at the usual place.
+                var fallback = outcome.FinalUrl is { } final ? new Uri(final, "/apple-touch-icon.png").AbsoluteUri : null;
+                link.PreviewLogoKey = await FirstThumbnailAsync((page.Icons ?? []).Take(ImagesToTry).Concat(fallback is null ? [] : [fallback]), budget);
             }
             link.PreviewFetchedAt = clock.GetUtcNow().UtcDateTime;
         }
@@ -85,6 +84,18 @@ public class LinkPreviews(PageScraper scraper, ImageStore images, TimeProvider c
             // Out of time: no preview now, the next save tries again (PreviewFetchedAt stays null).
             log.LogInformation("Link preview for {Url} took too long", link.Url);
         }
+    }
+
+    async Task<string?> FirstThumbnailAsync(IEnumerable<string> urls, CancellationToken budget)
+    {
+        foreach (var url in urls)
+        {
+            var image = await scraper.FetchImageAsync(url, budget);
+            if (image.Bytes is null) continue;
+            using var stream = new MemoryStream(image.Bytes);
+            if (images.SaveThumbnail(stream) is { } key) return key;
+        }
+        return null;
     }
 
     static string? Trimmed(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
