@@ -292,6 +292,11 @@ public class ScrapeTests(AppFactory app) : IClassFixture<AppFactory>
         Assert.Equal("image/webp", res.Content.Headers.ContentType!.MediaType);
         Assert.True((await res.Content.ReadAsByteArrayAsync()).Length is > 0 and < 50_000);
 
+        // The cropper works on the full-size picture (what an import would store), not the 320 px thumbnail.
+        app.Web.File("https://shop.example/big.png", FakeWeb.Png(2400, 1600), "image/png");
+        using var full = SkiaSharp.SKBitmap.Decode(await c.GetByteArrayAsync("/api/scrape/image?full=true&url=" + Uri.EscapeDataString("https://shop.example/big.png")));
+        Assert.Equal(1600, full.Width);
+
         await c.GetAsync("/api/scrape/image?url=" + Uri.EscapeDataString("https://shop.example/preview.html")).Fails(400, "not-an-image");
         await c.GetAsync("/api/scrape/image?url=" + Uri.EscapeDataString("http://169.254.169.254/latest")).Fails(400, "invalid-url");
         await app.Anonymous().GetAsync("/api/scrape/image?url=" + Uri.EscapeDataString("https://shop.example/preview.png")).Fails(401);

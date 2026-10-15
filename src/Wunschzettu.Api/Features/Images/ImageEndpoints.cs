@@ -25,6 +25,11 @@ public static class ImageEndpoints
             .WithMetadata(new RequestSizeLimitAttribute(MaxUploadBytes + 64 * 1024))
             .RequireRateLimiting(ScrapeEndpoints.RateLimitPolicy); // decoding is the most expensive thing the server does
         group.MapPost("/import", Import).RequireRateLimiting(ScrapeEndpoints.RateLimitPolicy);
+        // Cropping: the browser sends the cut-out, the picture keeps its place and id.
+        group.MapPut("/{imageId:guid}", Replace)
+            .DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(MaxUploadBytes + 64 * 1024))
+            .RequireRateLimiting(ScrapeEndpoints.RateLimitPolicy);
         group.MapDelete("/{imageId:guid}", Delete);
     }
 
@@ -58,6 +63,28 @@ public static class ImageEndpoints
 
         await using var stream = file.OpenReadStream();
         return await StoreAsync(wish, stream, user, db, store, clock, ct);
+    }
+
+    static async Task<Results<Ok<WishImageDto>, NotFound, ProblemHttpResult>> Replace(Guid wishId, Guid imageId, IFormFile file, ClaimsPrincipal user,
+        AppDbContext db, ImageStore store, IOptions<AppOptions> options, CancellationToken ct)
+    {
+        var wish = await LoadEditableAsync(wishId, user, db, ct);
+        var image = wish?.Images.SingleOrDefault(i => i.Id == imageId);
+        if (image is null) return TypedResults.NotFound();
+        // The five-pictures limit doesn't apply: the picture only gets another cut.
+        if (file.Length > MaxUploadBytes) return TypedResults.Problem("The image is larger than 10 MB.", statusCode: 413, type: "too-large");
+        if (await CheckQuotaAsync(user, db, options, ct) is { } problem) return problem;
+
+        await using var stream = file.OpenReadStream();
+        if (store.Save(stream) is not var (key, bytes))
+            return TypedResults.Problem("This file isn't a supported image.", statusCode: 400, type: "not-an-image");
+
+        var oldKey = image.FileKey;
+        image.FileKey = key;
+        image.Bytes = bytes;
+        await db.SaveChangesAsync(ct);
+        store.Delete(oldKey);
+        return TypedResults.Ok(new WishImageDto(image.Id, $"/img/{key}.webp", $"/img/{key}_thumb.webp"));
     }
 
     /// "Wunsch aus Link": the server downloads a picture from the shop page (§9 SSRF rules apply).

@@ -147,6 +147,7 @@ export interface paths {
             parameters: {
                 query: {
                     url: string;
+                    full?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -1921,7 +1922,42 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    wishId: string;
+                    imageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        file: components["schemas"]["IFormFile"];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WishImageDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         post?: never;
         delete: {
             parameters: {

@@ -63,6 +63,6 @@ export function withBrand(title: string, brand: string | null | undefined): stri
 }
 
 /** A shop picture as the server shows it: fetched and shrunk there, so the browser never contacts the shop. */
-export function previewImageUrl(url: string): string {
-  return `/api/scrape/image?url=${encodeURIComponent(url)}`;
+export function previewImageUrl(url: string, full = false): string {
+  return `/api/scrape/image?${full ? 'full=true&' : ''}url=${encodeURIComponent(url)}`;
 }

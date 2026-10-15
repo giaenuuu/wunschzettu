@@ -55,15 +55,16 @@ public class ImageStore(IOptions<AppOptions> options)
         return key;
     }
 
-    /// A small WebP of a shop picture for the wish dialog's preview. Nothing is stored: the browser never talks to the shop.
-    public byte[]? RenderPreview(Stream input)
+    /// A small WebP of a shop picture for the wish dialog's preview (or the full-size one for cropping). Nothing is stored: the browser never talks to the shop.
+    public byte[]? RenderPreview(Stream input, bool full = false)
     {
         Gate.Wait();
         try
         {
             using var upright = Decode(input);
             if (upright is null) return null;
-            using var data = Render(upright, PreviewEdge, 70);
+            // "full" is the size the stored picture would have: what the cropper works on.
+            using var data = full ? Render(upright, MaxEdge, 85) : Render(upright, PreviewEdge, 70);
             return data.ToArray();
         }
         finally { Gate.Release(); }

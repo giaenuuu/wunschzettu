@@ -7,7 +7,8 @@ import { problemMessage, problemType } from '../../core/problems';
 import { LinkCard } from '../../shared/link-card';
 import { hostOf, nameFromUrl, normalizeUrl, previewImageUrl, withBrand } from '../../shared/links';
 import { UiButton } from '../../ui/button';
-import { DIALOG_DATA, DialogRef, UiDialog, UiDialogActions } from '../../ui/dialog';
+import { CropDialogData, CropDialogResult, ImageCropper } from '../../shared/image-cropper';
+import { DIALOG_DATA, DialogRef, Dialogs, UiDialog, UiDialogActions } from '../../ui/dialog';
 import { UiControl, UiField } from '../../ui/field';
 import { UiIcon } from '../../ui/icon';
 import { SegmentOption, UiSegmented } from '../../ui/segmented';
@@ -182,12 +183,14 @@ interface LinkModel {
                 @for (img of images(); track img.id) {
                   <div class="relative size-24 overflow-hidden rounded-2xl bg-sunken">
                     <img [src]="img.thumbUrl" alt="" class="size-full object-cover" />
+                    <button type="button" class="thumb-crop" (click)="cropImage(img)" i18n-aria-label="@@wish.cropImage" aria-label="Bild zuschneiden"><span><ui-icon name="crop" [size]="16" /></span></button>
                     <button type="button" class="thumb-remove" (click)="removeImage(img)" i18n-aria-label="@@wish.removeImage" aria-label="Bild entfernen"><span><ui-icon name="close" [size]="16" /></span></button>
                   </div>
                 }
                 @for (p of pending(); track $index) {
                   <div class="relative size-24 overflow-hidden rounded-2xl bg-sunken ring-2 ring-accent/40">
                     <img [src]="p.kind === 'file' ? p.preview : previewUrl(p.url)" alt="" class="size-full object-cover" />
+                    <button type="button" class="thumb-crop" (click)="cropPending(p)" i18n-aria-label="@@wish.cropImage" aria-label="Bild zuschneiden"><span><ui-icon name="crop" [size]="16" /></span></button>
                     <button type="button" class="thumb-remove" (click)="removePending(p)" i18n-aria-label="@@wish.removeImage" aria-label="Bild entfernen"><span><ui-icon name="close" [size]="16" /></span></button>
                   </div>
                 }
@@ -298,10 +301,11 @@ interface LinkModel {
   `,
   styles: `
     /* 40px to tap, 28px to see */
-    .thumb-remove {
+    .thumb-remove, .thumb-crop {
       position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 40px; height: 40px; cursor: pointer;
     }
-    .thumb-remove > span {
+    .thumb-crop { right: auto; left: 0; }
+    .thumb-remove > span, .thumb-crop > span {
       display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: rgb(0 0 0 / 0.6); color: white;
     }
   `,
@@ -310,6 +314,7 @@ export class WishDialog {
   protected readonly data = inject<WishDialogData>(DIALOG_DATA);
   protected readonly ref = inject<DialogRef<Wish>>(DialogRef);
   readonly #http = inject(HttpClient);
+  readonly #dialogs = inject(Dialogs);
   readonly #injector = inject(Injector);
   private readonly urlInput = viewChild<ElementRef<HTMLInputElement>>('urlInput');
   private readonly nameInput = viewChild('nameInput', { read: ElementRef<HTMLInputElement> });
@@ -504,6 +509,32 @@ export class WishDialog {
     this.pending.update((list) => list.filter((x) => x !== p));
   }
 
+  /** Cut a picture of this wish: the browser crops, the server swaps the file and keeps the picture's place. */
+  protected async cropImage(img: WishImage) {
+    const blob = await this.#crop(img.url);
+    if (!blob) return;
+    try {
+      const updated = await firstValueFrom(this.#http.put<WishImage>(`/api/wishes/${this.data.wish!.id}/images/${img.id}`, fileBody(cutFile(blob))));
+      this.images.update((list) => list.map((i) => (i.id === img.id ? updated : i)));
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    }
+  }
+
+  /** A picture that isn't saved yet: from the device, or from the shop page (then in the size an import would store). */
+  protected async cropPending(p: PendingImage) {
+    const blob = await this.#crop(p.kind === 'file' ? p.file : previewImageUrl(p.url, true));
+    if (!blob) return;
+    const file = cutFile(blob);
+    if (p.kind === 'file') URL.revokeObjectURL(p.preview);
+    const cut: PendingImage = { kind: 'file', file, preview: URL.createObjectURL(file) };
+    this.pending.update((list) => list.map((x) => (x === p ? cut : x)));
+  }
+
+  #crop(source: string | Blob): Promise<Blob | undefined> {
+    return firstValueFrom(this.#dialogs.open<ImageCropper, CropDialogData, CropDialogResult>(ImageCropper, { data: { source }, size: 'lg' }).closed);
+  }
+
   protected async removeImage(img: WishImage) {
     try {
       await firstValueFrom(this.#http.delete(`/api/wishes/${this.data.wish!.id}/images/${img.id}`));
@@ -590,6 +621,10 @@ function toModel(w?: Wish) {
 
 function onlineLink(url: string): LinkModel {
   return { kind: 'Online', url, label: '', note: '', picture: 'image' };
+}
+
+function cutFile(blob: Blob): File {
+  return new File([blob], 'bild.jpg', { type: 'image/jpeg' });
 }
 
 function fileBody(file: File) {

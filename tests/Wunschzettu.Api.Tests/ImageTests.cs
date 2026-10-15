@@ -52,6 +52,40 @@ public class ImageTests(AppFactory app) : IClassFixture<AppFactory>
     }
 
     [Fact]
+    public async Task A_cropped_picture_replaces_the_old_one_in_place()
+    {
+        var c = await app.UserAsync("crop@example.com", "Crop");
+        var list = await c.Post("/api/wishlists", new { title = "Bilder" }).Read<WishlistDetailDto>();
+        var wish = await c.Post($"/api/wishlists/{list.Id}/wishes", new { name = "Lampe" }).Read<WishDto>();
+        var first = await Upload(c, wish.Id, Jpeg(3000, 2000)).Read<WishImageDto>();
+        for (var i = 0; i < 4; i++) await Upload(c, wish.Id, Jpeg(200, 200)).Ok(); // five pictures: uploading more is refused, replacing isn't
+
+        MultipartFormDataContent Cut(byte[] bytes)
+        {
+            var content = new MultipartFormDataContent();
+            var file = new ByteArrayContent(bytes);
+            file.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+            content.Add(file, "file", "crop.jpg");
+            return content;
+        }
+
+        var cropped = await c.PutAsync($"/api/wishes/{wish.Id}/images/{first.Id}", Cut(Jpeg(900, 900))).Read<WishImageDto>();
+        Assert.Equal(first.Id, cropped.Id);
+        Assert.NotEqual(first.Url, cropped.Url);
+        Assert.False(File.Exists(Path.Combine(app.ImagesDir, first.Url.Split('/').Last())));
+        using var decoded = SKBitmap.Decode(await app.Anonymous().GetByteArrayAsync(cropped.Url));
+        Assert.Equal((900, 900), (decoded.Width, decoded.Height));
+
+        var shared = await app.Anonymous().GetAsync($"/api/shared/{list.ShareToken}").Read<SharedListDto>();
+        Assert.Equal(cropped.Url, shared.Wishes[0].Images[0].Url); // still the first picture
+
+        await c.PutAsync($"/api/wishes/{wish.Id}/images/{Guid.NewGuid()}", Cut(Jpeg(10, 10))).Fails(404);
+        await c.PutAsync($"/api/wishes/{wish.Id}/images/{first.Id}", Cut([1, 2, 3])).Fails(400, "not-an-image");
+        var stranger = await app.UserAsync("crop-stranger@example.com", "S");
+        await stranger.PutAsync($"/api/wishes/{wish.Id}/images/{first.Id}", Cut(Jpeg(10, 10))).Fails(404);
+    }
+
+    [Fact]
     public async Task Non_images_and_strangers_are_rejected()
     {
         var c = await app.UserAsync("img2@example.com", "Img");

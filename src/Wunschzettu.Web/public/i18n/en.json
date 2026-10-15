@@ -605,6 +605,19 @@
     "members.linkWhatRecipient": "The person gets their own view: they can add wishes but never see what has already been given. The surprise stays.",
     "members.shareTitle": "Invitation to the wishlist “{$title}”",
     "members.shareTextManager": "{$who} invites you to manage the wishlist “{$title}”:",
-    "members.shareTextRecipient": "{$who} created the wishlist “{$title}” for you:"
+    "members.shareTextRecipient": "{$who} created the wishlist “{$title}” for you:",
+    "wish.cropImage": "Crop picture",
+    "crop.title": "Crop picture",
+    "crop.frameLabel": "Cut-out of the picture. Move it with the arrow keys, zoom with plus and minus.",
+    "crop.loading": "Loading picture …",
+    "crop.shape": "Shape of the cut-out",
+    "crop.zoom": "Zoom",
+    "crop.hint": "Drag the picture into place. To zoom: slider, mouse wheel or two fingers.",
+    "crop.apply": "Apply",
+    "crop.landscape": "Landscape",
+    "crop.square": "Square",
+    "crop.portrait": "Portrait",
+    "crop.failed": "The picture could not be loaded.",
+    "crop.exportFailed": "The cut-out could not be created."
   }
 }

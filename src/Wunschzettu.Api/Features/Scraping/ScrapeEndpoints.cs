@@ -50,16 +50,16 @@ public static class ScrapeEndpoints
             .RequireRateLimiting(PreviewRateLimitPolicy);
     }
 
-    static async Task<Results<FileContentHttpResult, ProblemHttpResult>> PreviewImage(string url, PageScraper scraper, ImageStore store,
+    static async Task<Results<FileContentHttpResult, ProblemHttpResult>> PreviewImage(string url, bool? full, PageScraper scraper, ImageStore store,
         IMemoryCache cache, HttpContext http, CancellationToken ct)
     {
-        var key = "preview:" + url;
+        var key = (full == true ? "preview-full:" : "preview:") + url;
         if (!cache.TryGetValue(key, out byte[]? bytes))
         {
             var fetched = await scraper.FetchImageAsync(url, ct);
             if (fetched.Bytes is null) return Problem(fetched.Error);
             using var stream = new MemoryStream(fetched.Bytes);
-            bytes = store.RenderPreview(stream);
+            bytes = store.RenderPreview(stream, full == true);
             if (bytes is null) return TypedResults.Problem("This file isn't a supported image.", statusCode: 400, type: "not-an-image");
             cache.Set(key, bytes, TimeSpan.FromMinutes(10));
         }
