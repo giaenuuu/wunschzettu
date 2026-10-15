@@ -123,6 +123,10 @@ try {
   await velo.getByRole('button', { name: 'Gemeinsam schenken' }).click();
   await anna.getByLabel('Dein Beitrag (optional)').fill('100');
   await anna.getByRole('button', { name: 'Starten' }).click();
+  // Group gifts need a proven mailbox: Anna confirms with the code, then the gift starts.
+  await anna.getByLabel('Code', { exact: true }).waitFor();
+  await anna.getByLabel('Code', { exact: true }).fill(codeIn(await mailTo(email('anna'))));
+  await anna.getByRole('button', { name: 'Bestätigen' }).click();
   await velo.getByText('Ihr schenkt das gemeinsam').waitFor();
   await shot(anna, '03-guest');
   step('guest reserves and starts a group gift');
@@ -136,14 +140,17 @@ try {
   await ben.getByLabel('Your name').fill('Ben');
   await ben.getByLabel('Your email').fill(email('ben'));
   await ben.getByRole('dialog').getByRole('button', { name: 'Join' }).click();
+  await ben.getByLabel('Code', { exact: true }).waitFor();
+  await ben.getByLabel('Code', { exact: true }).fill(codeIn(await mailTo(email('ben'))));
+  await ben.getByRole('button', { name: 'Confirm' }).click();
   await ben.locator('app-wish-card', { hasText: 'Kindervelo' }).getByText('pledged').waitFor();
   await shot(ben, '04-guest-en-dark');
   step('second guest sees taken and joins');
 
-  // Ben confirms through the link in his mail and finds his gifts on the dashboard.
-  await ben.goto(`${base}/confirm?token=${linkTokenIn(await mailTo(email('ben'), (t) => t.includes('token=')))}&returnUrl=/`);
+  // Ben is confirmed now (he proved his mailbox to join) and finds his gifts on the dashboard.
+  await ben.goto(`${base}/`);
   await ben.getByText("What I'm giving").waitFor();
-  step('confirm by mail link');
+  step('group gift needs a confirmed email, confirmed by code');
 
   // The manager (not the recipient) sees who gives what.
   await owner.goto(`${base}/lists/${listId}/edit`);
@@ -153,7 +160,7 @@ try {
   // Lena is invited as recipient: she must never see any gift state.
   await owner.getByText('Personen', { exact: true }).click();
   await owner.getByLabel('E-Mail-Adresse').fill(email('lena'));
-  await owner.getByRole('radio', { name: 'Beschenkt' }).click();
+  await owner.getByRole('radio', { name: 'Beschenkt' }).first().click();
   await owner.getByRole('button', { name: 'Einladen', exact: true }).click();
   await owner.getByText('Einladung verschickt').waitFor();
   const lena = await page('lena');

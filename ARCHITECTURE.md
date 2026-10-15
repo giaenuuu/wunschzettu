@@ -130,7 +130,7 @@ LoginCode       (one-time codes and link tokens, hashed)
 - `Id`, `WishId`, `Kind` (`Online` | `Store`), `Label`, `Url`, `Note`, `SortOrder`
 - **Online**: `Url` required (http/https), `Label` optional (shop name), `Note` optional ("in Grösse M").
 - **Store**: `Label` required ("Manor"), `Note` optional (place, branch, hint), no `Url`.
-- **Preview** for online links: `PreviewTitle`, `PreviewSiteName`, `PreviewImageKey` (a stored thumbnail), `PreviewFetchedAt`. Fetched by the server while saving the wish, only for URLs that are new or changed (about 6 s budget, in parallel). A failure just means no preview; a timeout leaves `PreviewFetchedAt` empty, so the next save tries again. Thumbnails of links that go away are deleted.
+- **Preview** for online links: `PreviewTitle`, `PreviewSiteName`, `PreviewImageKey` (a stored thumbnail), `PreviewLogoKey` (the shop's apple-touch-icon or favicon, same format), `PreviewFetchedAt`. `UseLogo` is the owner's choice of what the link card shows, product picture or shop logo (with fallback to the other). Fetched by the server while saving the wish, only for URLs that are new or changed (about 6 s budget, in parallel). A failure just means no preview; a timeout leaves `PreviewFetchedAt` empty, so the next save tries again. Thumbnails of links that go away are deleted.
 - **Wunsch aus Link**: `POST /api/scrape` reads a shop page (Open Graph, Twitter cards, schema.org `Product` JSON-LD) to prefill name, description, price and images. Results are cached for 15 minutes, so saving the link right after doesn't fetch the page again. Chosen images are then imported with `POST /api/wishes/{id}/images/import`. Many big shops block bots (Galaxus, Zalando answer 403); the UI then just keeps the link.
 
 ### Gift
@@ -147,6 +147,10 @@ Someone committing to give a wish, alone or as a group.
 ### OutboxMessage
 - `Id`, `Type`, `ToEmail`, `ToUserId`, `Subject`, `HtmlBody`, `TextBody`, `CreatedAt`, `NextAttemptAt`, `SentAt`, `Attempts`, `LastError`
 - Rendered when the action happens (in the recipient's language), so the sender only sends.
+
+### ListInvite
+- `WishlistId`, `Role` (`Manager` | `Recipient`), `TokenHash`, `CreatedByUserId`, `ExpiresAt` (7 days), `UsedAt`, `UsedByUserId`
+- A link a manager shares in any channel. Whoever opens it and signs in with a **confirmed** email becomes co-manager or recipient, once. Only the hash is stored, so the link is shown once; open links can be listed and revoked. Opening your own link (or one for a role you already have) doesn't use it up. Becoming recipient or manager ends one's own gifts on that list, as with email invitations (§6).
 
 ### LoginCode
 - `UserId`, `CodeHash` (6 digits to type), `TokenHash` (for links), `Purpose` (`Login` | `Confirm` | `Invite`), `ExpiresAt`, `UsedAt`
@@ -185,7 +189,8 @@ Guest opens /l/{token}
    - The **first** confirmation changes the security stamp, so every other session of that account ends within minutes. Anyone can type someone's email before they ever confirm; such a session must not turn into a full login once the real owner confirms.
    - Links point to the SPA's `/confirm` page, which POSTs the token. A GET with side effects would be "clicked" by mail scanners.
    - Codes and link tokens are stored hashed, single-use. Login codes live 15 minutes, confirmation codes until the participation expires, invitations 7 days.
-2. **Unconfirmed actions are visible as such.** Other guests see "reserviert (unbestätigt)". Recipients see nothing, as always.
+2. **Group gifts need a confirmed email.** Starting or joining one means coordinating with others, so the dialog first asks for a code (`/identify` with `requireConfirmation`, or `/request-code` for a guest who reserved before). A solo reservation still works unconfirmed, and every unconfirmed choice sends a new mail with the confirmation button and code.
+3. **Unconfirmed actions are visible as such.** Other guests see "reserviert (unbestätigt)". Recipients see nothing, as always.
 3. **Reminders are limited:** at most **2** reminder mails (day 2 and day 5). On day 7 the unconfirmed participation is **released**: the wish becomes available again and the person gets a final "Reservation aufgehoben" mail. A typo or a fake email can never block a wish forever.
    - If the event date is earlier, everything is compressed so the release happens no later than 1 day before the event.
 4. **Unconfirmed identities are device-bound.** An unconfirmed user can only change or withdraw participations from the device that created them (cookie). On a new device they must confirm first.
@@ -196,7 +201,7 @@ Guest opens /l/{token}
    - **No account lockout**, because a stranger could use it to lock anyone out. Instead: each code dies after 5 wrong guesses and only 12 codes a day are sent (≈60 guesses a day against a million codes); wrong passwords are throttled per account and IP (5 per 15 minutes block that IP only) plus 30 per account from anywhere (only a distributed attack gets there, and codes and links still work). Unknown accounts take as long to check as known ones.
    - Identical responses for known and unknown emails.
 6. **Creating lists requires a confirmed email.** Anyone may create lists (no allowlist), but only after confirming. Upload limits per user apply (§9).
-7. **Sessions are long:** 90 days, sliding. Non-technical users should rarely see a login screen again.
+7. **Sessions:** confirmed accounts 90 days, sliding, so non-technical users rarely see a login screen. An unconfirmed guest only gets **temporary access**: 7 days without use, and no profile page. Email is not offered to guests as a login; it proves the mailbox.
 8. Managers log in the same way: email code or link.
 9. **Optional password.** A confirmed user may set a password in the profile (at least 8 characters, no composition rules) and then log in with email + password as an alternative to the code. Wrong passwords are throttled (rule 5), and every failure gets the same `invalid-login` answer. Setting, changing or removing it changes the security stamp: other sessions end within minutes, the current one is renewed. The owner gets a "Passwort geändert" mail every time, so a password set from a stolen session doesn't go unnoticed. Forgotten passwords need no reset flow: log in with a code and set a new one. Passkeys are in §12.
 10. **Your data, your call** (Swiss nDSG / EU GDPR). The profile offers:
@@ -316,6 +321,11 @@ GET    /api/wishlists/{id}/members      managers, recipients, invited guests
 POST   /api/wishlists/{id}/members      { email, role } invite by mail
 PUT    /api/wishlists/{id}/members/{userId}  { isManager, isRecipient }
 DELETE /api/wishlists/{id}/members/{userId}
+GET    /api/wishlists/{id}/invite-links  open invitation links of a list (managers)
+POST   /api/wishlists/{id}/invite-links  { role: Manager | Recipient } → { url } shown once
+DELETE /api/wishlists/{id}/invite-links/{inviteId}  revoke
+GET    /api/invite-links/{token}         list title, inviter, role (for the page before sign-in)
+POST   /api/invite-links/{token}/accept  confirmed users; joins the list, uses the link up
 
 POST   /api/wishlists/{id}/wishes       managers and recipients
 PUT    /api/wishlists/{id}/wishes/order [ids…]
@@ -325,6 +335,8 @@ POST   /api/wishes/{id}/fulfil          (DELETE to undo)
 POST   /api/wishes/{id}/images          multipart, resize → webp
 POST   /api/wishes/{id}/images/import   { url } download a shop image (SSRF rules, §9)
 POST   /api/scrape                      { url } → title, description, price, currency, siteName, images (prefill)
+PUT    /api/wishes/{id}/images/{imageId} multipart: a cropped version replaces the file, the picture keeps its id and place
+GET    /api/scrape/image?url=&full=      a shop picture, fetched and shrunk by the server (thumbnail, or full size for cropping); the browser never contacts the shop
 DELETE /api/wishes/{id}/images/{imageId}
 GET    /img/{fileKey}.webp              static, cached forever
 
@@ -396,7 +408,8 @@ OpenAPI is generated by .NET at build time. The Angular client types are generat
   - Adding a wish only requires a name; everything else is optional
   - Mobile-first, since most people open the link from WhatsApp
   - The code input auto-fills (`autocomplete="one-time-code"`)
-- **i18n**: German texts live in the templates (`i18n="@@id"`), `public/i18n/en.json` holds English. `npm run i18n:check` fails on missing or stale keys.
+- **i18n**: German texts (Swiss spelling) live in the templates (`i18n="@@id"`). Languages: de-CH, de-DE, de-AT, en, fr, es, pt-BR, pt-PT, each with an inline-SVG flag (flag emojis don't render on Windows). `public/i18n/{en,fr,es,pt-BR}.json` are complete; `de-DE`, `de-AT` (ß, a few words) and `pt-PT` (vocabulary) only hold what differs and are loaded on top of the base (`main.ts`). Date, number and currency formats come from Angular's locale data of the chosen language. Mails exist in German, English, French, Spanish and Portuguese (`Mails.cs`), with the variants applied. The legal pages exist in German and English; other languages show the English one. `npm run i18n:check` fails on missing or stale keys.
+- **Pictures**: the cropper is a dialog of its own (drag, zoom by slider, wheel or two fingers; 4:3, 1:1 or 3:4) that cuts in the browser and sends a JPEG; no library. Shop pictures are previewed through `/api/scrape/image`, so the CSP only allows own images. The list's emoji can be any single emoji (checked on the server).
 - **Light and dark**: follows the device, or pinned in the menu. Every palette works in both; "Nacht" is always dark.
 - **Gift state** is only requested when the viewer isn't the recipient.
 

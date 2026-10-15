@@ -26,7 +26,7 @@ Without the devcontainer you need the .NET 10 SDK and Node 24+, then `dotnet too
 | Browser smoke test (servers running) | `npm run e2e` in `src/Wunschzettu.Web`; once per machine: `npx playwright install --with-deps chromium-headless-shell` |
 | Add a migration | `dotnet ef migrations add <Name> -p src/Wunschzettu.Api -o Data/Migrations` (applied on startup). Check the generated file: EF sometimes guesses renames |
 | Regenerate TS API types | `dotnet build` (writes `src/Wunschzettu.Web/src/api/openapi.json`), then `npm run api:types` in `src/Wunschzettu.Web` |
-| Translations | Texts are German in the templates (`i18n="@@id"`). After changing any, run `npm run i18n:check` and update `public/i18n/en.json` |
+| Translations | Texts are German in the templates (`i18n="@@id"`). After changing any, run `npm run i18n:check` and update `public/i18n/{en,fr,es,pt-BR}.json` (de-DE, de-AT and pt-PT only list differences) |
 | Icons | Write `<ui-icon name="name" />` with any [Material Symbols](https://fonts.google.com/icons) name (`-fill` for filled). `npm start`/`build` copy the used ones to `public/icons` |
 | UI | Tailwind CSS 4 utilities in templates; reusable pieces live in `src/app/ui` (buttons, fields, dialogs, …), design tokens in `src/styles.css` |
 

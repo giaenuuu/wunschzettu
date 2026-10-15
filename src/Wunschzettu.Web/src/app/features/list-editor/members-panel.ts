@@ -100,8 +100,7 @@ import { Toaster } from '../../ui/toaster';
 
       @if (created(); as link) {
         <div class="flex flex-col gap-3">
-          <label class="sr-only" for="invite-link" i18n="@@members.linkLabel">Einladungslink</label>
-          <input id="invite-link" uiControl readonly [value]="link.url" (focus)="selectAll($event)" />
+          <input uiControl readonly [value]="link.url" (focus)="selectAll($event)" i18n-aria-label="@@members.linkLabel" aria-label="Einladungslink" />
           <div class="flex flex-wrap items-center gap-2">
             <app-share-button [url]="link.url" [title]="shareTitle()" [text]="shareText()" />
             <button uiButton variant="ghost" size="sm" type="button" (click)="created.set(null)" i18n="@@members.linkDone">Fertig</button>
