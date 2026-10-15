@@ -7,7 +7,25 @@ namespace Wunschzettu.Api.Features.Wishlists;
 
 public enum ViewerRole { Guest, Manager, Recipient }
 
-public record ThemeDto(Palette Palette, [property: StringLength(16)] string? Emoji, ListLayout Layout)
+/// One emoji (a flag, a skin-tone or ZWJ sequence counts as one): anything typed into the list's stamp must be a symbol, not text.
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
+public sealed class SingleEmojiAttribute : ValidationAttribute
+{
+    public SingleEmojiAttribute() : base("Pick a single emoji.") { }
+
+    public override bool IsValid(object? value) => value is not string s || string.IsNullOrWhiteSpace(s) || IsEmoji(s.Trim());
+
+    public static bool IsEmoji(string s)
+    {
+        var elements = System.Globalization.StringInfo.GetTextElementEnumerator(s);
+        if (!elements.MoveNext() || elements.GetTextElement().Length != s.Length) return false;
+        var first = System.Text.Rune.GetRuneAt(s, 0);
+        return System.Text.Rune.GetUnicodeCategory(first) is System.Globalization.UnicodeCategory.OtherSymbol
+            or System.Globalization.UnicodeCategory.ModifierSymbol or System.Globalization.UnicodeCategory.MathSymbol;
+    }
+}
+
+public record ThemeDto(Palette Palette, [property: StringLength(16), SingleEmoji] string? Emoji, ListLayout Layout)
 {
     public static ThemeDto From(Theme t) => new(t.Palette, t.Emoji, t.Layout);
     public Theme ToEntity() => new() { Palette = Palette, Emoji = string.IsNullOrWhiteSpace(Emoji) ? null : Emoji.Trim(), Layout = Layout };

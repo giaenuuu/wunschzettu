@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, input, model, viewChildren } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, input, model, viewChildren } from '@angular/core';
 import { FormValueControl } from '@angular/forms/signals';
 import { Palette } from '../core/api';
 import { palettes } from './palettes';
@@ -36,19 +36,49 @@ function moveFocus(event: KeyboardEvent, buttons: readonly ElementRef<HTMLButton
           {{ e }}
         </button>
       }
+      <!-- Any emoji: tap, then use the device's emoji keyboard (or paste one). -->
+      <label
+        class="relative grid size-12 cursor-text place-items-center rounded-2xl border-2 text-2xl transition-all duration-150 focus-within:border-accent hover:scale-110"
+        [class]="custom() ? 'border-accent bg-accent-soft scale-110' : 'border-dashed border-line-strong bg-raised text-ink-muted'"
+      >
+        <input
+          class="size-full rounded-2xl bg-transparent text-center outline-none placeholder:text-ink-muted"
+          [value]="custom()"
+          (input)="setCustom($event)"
+          maxlength="16"
+          placeholder="+"
+          autocomplete="off"
+          i18n-aria-label="@@emoji.custom"
+          aria-label="Eigenes Emoji"
+        />
+      </label>
     </div>
+    <p class="mt-2 text-sm text-ink-muted" i18n="@@emoji.customHint">Oder tippe auf das «+» und wähle ein eigenes Emoji von deiner Emoji-Tastatur.</p>
   `,
 })
 export class EmojiPicker implements FormValueControl<string> {
   readonly value = model('');
   readonly label = input.required<string>();
   protected readonly emojis = listEmojis;
+  /** The chosen emoji when it is not one of the presets. */
+  protected readonly custom = computed(() => (this.emojis.includes(this.value()) ? '' : this.value()));
   private readonly buttons = viewChildren<ElementRef<HTMLButtonElement>>('option');
 
   protected onKeydown(event: KeyboardEvent) {
     moveFocus(event, this.buttons(), (i) => this.value.set(this.emojis[i]));
   }
+
+  /** Keeps the first emoji of whatever was typed or pasted; letters and digits are ignored. */
+  protected setCustom(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const first = [...segmenter.segment(input.value)].map((s) => s.segment).find((s) => emojiLike.test(s));
+    if (first) this.value.set(first);
+    input.value = first ?? this.custom();
+  }
 }
+
+const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+const emojiLike = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 
 /** The list's colour preset. Works with `[formField]`. */
 @Component({

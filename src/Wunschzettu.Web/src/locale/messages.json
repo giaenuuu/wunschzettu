@@ -554,6 +554,8 @@
     "share.copy": "Link kopieren",
     "share.more": "Weitere Apps …",
     "share.email": "E-Mail",
+    "emoji.custom": "Eigenes Emoji",
+    "emoji.customHint": "Oder tippe auf das «+» und wähle ein eigenes Emoji von deiner Emoji-Tastatur.",
     "wish.showImages": "Bilder ansehen",
     "wish.favorite": "Herzenswunsch",
     "wish.price": "ca. {$INTERPOLATION} {$INTERPOLATION_1}",

@@ -139,6 +139,28 @@ public class WishlistTests(AppFactory app) : IClassFixture<AppFactory>
     }
 
     [Fact]
+    public void Emojis_must_be_a_single_symbol()
+    {
+        foreach (var ok in new[] { "🎁", "🎄", "✨", "👨‍👩‍👧", "🇨🇭", "👍🏽", "❤️", "🏳️‍🌈" })
+            Assert.True(SingleEmojiAttribute.IsEmoji(ok), ok);
+        foreach (var bad in new[] { "ab", "a", "1", "🎁🎄", "<b>", "Hallo", "🎁 x" })
+            Assert.False(SingleEmojiAttribute.IsEmoji(bad), bad);
+    }
+
+    [Fact]
+    public async Task Custom_emojis_are_accepted_and_text_is_refused()
+    {
+        var owner = await app.UserAsync("emoji@example.com");
+        var list = await CreateList(owner);
+        object Update(string emoji) => new { title = "Fest", currency = "CHF", access = "Link", showGiverNames = true,
+            theme = new { palette = "Classic", emoji, layout = "Grid" } };
+
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.PutAsJsonAsync($"/api/wishlists/{list.Id}", Update("🦄"))).StatusCode);
+        Assert.Equal("🦄", (await Read<WishlistDetailDto>(await owner.GetAsync($"/api/wishlists/{list.Id}"))).Theme.Emoji);
+        Assert.Equal(HttpStatusCode.BadRequest, (await owner.PutAsJsonAsync($"/api/wishlists/{list.Id}", Update("<script>"))).StatusCode);
+    }
+
+    [Fact]
     public async Task Deleted_lists_disappear_and_can_be_restored()
     {
         var owner = await app.UserAsync("carol@example.com");

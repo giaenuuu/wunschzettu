@@ -474,6 +474,8 @@
     "wish.addStore": "Store",
     "wishDialog.loadingPreviews": "Loading link preview …",
     "wishDialog.editTitle": "Edit wish",
+    "emoji.custom": "Custom emoji",
+    "emoji.customHint": "Or tap the «+» and pick your own emoji from your emoji keyboard.",
     "wish.linkPicture": "Picture in the preview",
     "wish.linkPictureHint": "Shows the product picture or the shop's logo. The preview is loaded when you save.",
     "wish.pictureProduct": "Product picture",
