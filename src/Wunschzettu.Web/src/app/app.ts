@@ -3,7 +3,8 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Auth } from './core/auth';
 import { ColorScheme, Scheme } from './core/color-scheme';
-import { Language, chosenLanguage, switchLanguage } from './core/language';
+import { Language, chosenLanguage, languageOption, languageOptions, switchLanguage } from './core/language';
+import { Flag } from './shared/flag';
 import { Pwa } from './core/pwa';
 import { Logo } from './shared/logo';
 import { UiButton } from './ui/button';
@@ -14,7 +15,7 @@ import { UiToaster } from './ui/toaster';
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:submit)': 'focusFirstInvalid($event)' },
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CdkMenu, CdkMenuItem, CdkMenuItemRadio, CdkMenuTrigger, UiButton, UiIcon, UiToaster, Logo],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CdkMenu, CdkMenuItem, CdkMenuItemRadio, CdkMenuTrigger, Flag, UiButton, UiIcon, UiToaster, Logo],
   template: `
     <a href="#main" class="sr-only z-50 rounded-full bg-accent px-4 py-2 text-on-accent focus:not-sr-only focus:fixed focus:top-3 focus:left-3" i18n="@@app.skip">
       Zum Inhalt springen
@@ -50,7 +51,7 @@ import { UiToaster } from './ui/toaster';
         } @else {
           <!-- A globe plus the language reads as "settings" to everyone; a slider icon doesn't. -->
           <button uiButton variant="ghost" size="sm" class="px-2.5" [cdkMenuTriggerFor]="menu" i18n-aria-label="@@app.settings" aria-label="Sprache und Darstellung">
-            <ui-icon name="language" [size]="20" /><span aria-hidden="true">{{ language === 'en' ? 'EN' : 'DE' }}</span>
+            <ui-icon name="language" [size]="20" /><span aria-hidden="true">{{ current.short }}</span>
           </button>
           <a uiButton variant="secondary" size="sm" routerLink="/login" routerLinkActive="hidden!" i18n="@@app.login">Anmelden</a>
         }
@@ -101,7 +102,7 @@ import { UiToaster } from './ui/toaster';
       <div cdkMenu class="menu min-w-48">
         @for (l of languages; track l.code) {
           <button cdkMenuItemRadio class="menu-item" [cdkMenuItemChecked]="language === l.code" (cdkMenuItemTriggered)="setLanguage(l.code)" [attr.lang]="l.code">
-            <span class="w-5 text-center text-lg" aria-hidden="true">{{ l.flag }}</span><span class="flex-1">{{ l.label }}</span>
+            <app-flag [flag]="l.flag" /><span class="flex-1">{{ l.label }}</span>
             @if (language === l.code) { <ui-icon name="check" [size]="18" /> }
           </button>
         }
@@ -140,10 +141,8 @@ export class App {
     return (u?.displayName || u?.email || '?').trim().charAt(0).toUpperCase();
   });
   protected readonly language = chosenLanguage();
-  protected readonly languages: { code: Language; label: string; flag: string }[] = [
-    { code: 'de-CH', label: 'Deutsch', flag: '🇨🇭' },
-    { code: 'en', label: 'English', flag: '🇬🇧' },
-  ];
+  protected readonly current = languageOption(this.language);
+  protected readonly languages = languageOptions;
   protected readonly schemes: { value: Scheme; label: string; icon: string }[] = [
     { value: 'system', label: $localize`:@@scheme.system:Wie das Gerät`, icon: 'routine' },
     { value: 'light', label: $localize`:@@scheme.light:Hell`, icon: 'light_mode' },

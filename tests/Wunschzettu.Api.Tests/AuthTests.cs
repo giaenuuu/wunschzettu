@@ -145,6 +145,6 @@ public class AuthTests(AppFactory app) : IClassFixture<AppFactory>
         var c = await app.UserAsync("profile@example.com", "Ann", "en");
         var me = await c.GetAsync("/api/auth/me").Read<MeDto>();
         Assert.Equal(("Ann", "en"), (me.DisplayName, me.Language));
-        await c.Put("/api/auth/me", new { displayName = "Ann", language = "fr" }).Fails(400);
+        await c.Put("/api/auth/me", new { displayName = "Ann", language = "it" }).Fails(400);
     }
 }

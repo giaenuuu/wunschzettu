@@ -5,11 +5,12 @@ import { httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, Injectable, computed, inject, input } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { LegalInfo } from '../../core/api';
-import { chosenLanguage } from '../../core/language';
+import { chosenLanguage, isGerman } from '../../core/language';
 import { UiSkeleton } from '../../ui/feedback';
 import { UiIcon } from '../../ui/icon';
 
-export const isEnglish = () => chosenLanguage() === 'en';
+/** The legal texts exist in German and English; every other interface language shows the English one. */
+export const isEnglish = () => !isGerman(chosenLanguage());
 
 /** Operator details from the server's App:Operator configuration, loaded once and shared by all legal pages. */
 @Injectable({ providedIn: 'root' })

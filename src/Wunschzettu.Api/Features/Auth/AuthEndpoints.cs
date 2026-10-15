@@ -50,7 +50,7 @@ public record LegalDto(string? OperatorName, string? OperatorEmail, string? Oper
 
 public record UpdateMeRequest(
     [property: Required, StringLength(100, MinimumLength = 1)] string DisplayName,
-    [property: Required, AllowedValues("de-CH", "en")] string Language);
+    [property: Required, AllowedValues("de-CH", "de-DE", "de-AT", "en", "fr", "es", "pt-BR", "pt-PT")] string Language);
 
 public static class AuthEndpoints
 {

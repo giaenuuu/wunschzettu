@@ -23,7 +23,7 @@ public class AuthService(AppDbContext db, UserManager<AppUser> users, SignInMana
 
     DateTime Now => clock.GetUtcNow().UtcDateTime;
 
-    public static string NormalizeLanguage(string? language) => language == "en" ? "en" : "de-CH";
+    public static string NormalizeLanguage(string? language) => Languages.Normalize(language);
 
     public async Task<AppUser> FindOrCreateAsync(string email, string? displayName, string? language)
     {

@@ -2,19 +2,18 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChi
 import { form, FormField, FormRoot, maxLength, minLength, pattern, required, validate } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
 import { Auth } from '../../core/auth';
-import { chosenLanguage, Language, switchLanguage } from '../../core/language';
+import { chosenLanguage, Language, languageOptions, switchLanguage } from '../../core/language';
 import { problemMessage, problemType } from '../../core/problems';
 import { UiButton } from '../../ui/button';
 import { Confirmer } from '../../ui/confirm';
 import { UiControl, UiField } from '../../ui/field';
 import { UiIcon } from '../../ui/icon';
-import { SegmentOption, UiSegmented } from '../../ui/segmented';
 import { Toaster } from '../../ui/toaster';
 
 @Component({
   selector: 'app-profile',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormRoot, FormField, RouterLink, UiButton, UiControl, UiField, UiIcon, UiSegmented],
+  imports: [FormRoot, FormField, RouterLink, UiButton, UiControl, UiField, UiIcon],
   template: `
     <div class="page page-narrow">
       <h1 class="display mb-6 text-4xl" i18n="@@profile.title">Profil &amp; Sicherheit</h1>
@@ -45,10 +44,13 @@ import { Toaster } from '../../ui/toaster';
           <ui-field i18n-label="@@profile.name" label="Name" i18n-hint="@@profile.nameHint" hint="So sehen dich die anderen, wenn ihr gemeinsam schenkt.">
             <input uiControl autocomplete="name" [formField]="form.displayName" />
           </ui-field>
-          <div class="flex flex-col gap-2">
-            <span class="text-sm font-semibold" i18n="@@profile.language">Sprache (auch für Mails)</span>
-            <ui-segmented [formField]="form.language" [options]="languages" i18n-label="@@profile.language" label="Sprache (auch für Mails)" />
-          </div>
+          <ui-field i18n-label="@@profile.language" label="Sprache (auch für Mails)">
+            <select uiControl [formField]="form.language">
+              @for (l of languages; track l.code) {
+                <option [value]="l.code">{{ l.label }}</option>
+              }
+            </select>
+          </ui-field>
           <button uiButton type="submit" class="self-start" [busy]="form().submitting()" [disabled]="!auth.confirmed()" i18n="@@common.save">Speichern</button>
         </form>
       </section>
@@ -142,10 +144,7 @@ export class Profile {
 
   protected readonly passwordLabel = $localize`:@@profile.password:Passwort`;
   protected readonly newPasswordLabel = $localize`:@@profile.newPassword:Neues Passwort`;
-  protected readonly languages: SegmentOption<Language>[] = [
-    { value: 'de-CH', label: 'Deutsch' },
-    { value: 'en', label: 'English' },
-  ];
+  protected readonly languages = languageOptions;
 
   protected readonly form = form(
     signal({ displayName: this.auth.user()?.displayName ?? '', language: (this.auth.user()?.language ?? 'de-CH') as Language }),

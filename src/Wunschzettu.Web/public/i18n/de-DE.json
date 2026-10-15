@@ -1,0 +1,20 @@
+{
+  "locale": "de-DE",
+  "translations": {
+    "problem.tooLarge": "Das Bild ist größer als 10 MB.",
+    "dashboard.unconfirmed": "Bitte bestätige deine E-Mail-Adresse – sonst werden deine Reservierungen nach 7 Tagen wieder freigegeben.",
+    "landing.o9": "🎅 Nikolaus",
+    "landing.f2": "Für große Wünsche legen mehrere zusammen – mit Fortschrittsbalken statt Chat-Chaos.",
+    "landing.f7": "Nach dem Fest siehst du auf Wunsch, wer was geschenkt hat – samt lieben Grüßen.",
+    "gift.messageHintSolo": "Ein Gruß für die Dankesliste nach dem Fest.",
+    "gift.messageHintGroup": "Sehen alle, die mitmachen – z.B. «Ich kaufe es» oder eine PayPal-Adresse.",
+    "gift.withdrawTitle": "Reservierung zurückziehen?",
+    "view.removedIntro": "Diese Wünsche wurden von der Liste genommen. Du hattest sie gewählt – zieh deine Reservierung zurück, wenn du sie nicht mehr brauchst.",
+    "wish.descriptionPlaceholder": "Größe, Farbe, Modell …",
+    "wish.groupHint": "Mehrere legen für einen größeren Wunsch zusammen.",
+    "wish.linkNotePlaceholder": "z.B. in Größe M",
+    "wish.storeWherePlaceholder": "z.B. Marktstraße, Köln",
+    "wish.shopPlaceholder": "z.B. Otto",
+    "common.close": "Schließen"
+  }
+}
