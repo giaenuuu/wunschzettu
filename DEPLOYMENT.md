@@ -1,5 +1,7 @@
 # Deployment
 
+> Our own instance (test + production on the homelab) is described in [DEPLOYMENT-HOMELAB.md](DEPLOYMENT-HOMELAB.md).
+
 Step by step from a fresh server to a public Wunschzettu. Background and reasons: [ARCHITECTURE.md §11](ARCHITECTURE.md#11-hosting-on-the-homelab).
 
 What you need: a Docker host, a reverse proxy with TLS (examples use Caddy), a domain, and an SMTP account that may send from an address on your domain.

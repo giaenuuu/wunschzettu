@@ -36,4 +36,4 @@ Without the devcontainer you need the .NET 10 SDK and Node 24+, then `dotnet too
 docker compose up -d --build
 ```
 
-Everything lives in `./data` (database, daily backups, images, keys). The full step-by-step guide (mail DNS, reverse proxy, Cloudflare Tunnel, legal texts, backups, updates) is in [DEPLOYMENT.md](DEPLOYMENT.md).
+Everything lives in `./data` (database, daily backups, images, keys). The full step-by-step guide (mail DNS, reverse proxy, Cloudflare Tunnel, legal texts, backups, updates) is in [DEPLOYMENT.md](DEPLOYMENT.md). How our own instance is released (test → production) is in [DEPLOYMENT-HOMELAB.md](DEPLOYMENT-HOMELAB.md).
